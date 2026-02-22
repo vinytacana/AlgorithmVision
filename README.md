@@ -23,10 +23,6 @@ An interactive, real-time algorithm visualizer built with C++ and OpenGL. Explor
 *   **Mathematics:** GLM
 *   **Extensions:** GLEW
 
-## 📸 Screenshots
-
-*(Add screenshots here)*
-
 ## 🏗️ Build Instructions
 
 To build the project, you need to have a C++ compiler, CMake, and the following dependencies installed:
