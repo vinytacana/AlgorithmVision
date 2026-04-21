@@ -118,9 +118,11 @@ void GraphSimulator::step() {
 }
 
 void GraphSimulator::stepBFS() {
+    while (!q_bfs.empty() && visited.count(q_bfs.front())) {
+        q_bfs.pop();
+    }
     if (q_bfs.empty()) { finish(); return; }
     int curr = q_bfs.front(); q_bfs.pop();
-    if (visited.count(curr)) { stepBFS(); return; }
     visited.insert(curr);
     if (Node* current = getNodeById(curr)) current->state = VISITED;
     for (auto& e : edges) if (e.from == curr && !visited.count(e.to)) {
@@ -133,9 +135,11 @@ void GraphSimulator::stepBFS() {
 }
 
 void GraphSimulator::stepDFS() {
+    while (!s_dfs.empty() && visited.count(s_dfs.top())) {
+        s_dfs.pop();
+    }
     if (s_dfs.empty()) { finish(); return; }
     int curr = s_dfs.top(); s_dfs.pop();
-    if (visited.count(curr)) { stepDFS(); return; }
     visited.insert(curr);
     if (Node* current = getNodeById(curr)) current->state = VISITED;
     for (auto& e : edges) if (e.from == curr && !visited.count(e.to)) {
@@ -148,9 +152,11 @@ void GraphSimulator::stepDFS() {
 }
 
 void GraphSimulator::stepDijkstra() {
+    while (!pq_dijkstra.empty() && visited.count(pq_dijkstra.begin()->second)) {
+        pq_dijkstra.erase(pq_dijkstra.begin());
+    }
     if (pq_dijkstra.empty()) { finish(); return; }
     int curr = pq_dijkstra.begin()->second; pq_dijkstra.erase(pq_dijkstra.begin());
-    if (visited.count(curr)) { stepDijkstra(); return; }
     visited.insert(curr);
     Node* current = getNodeById(curr);
     if (current == nullptr) return;
@@ -172,6 +178,10 @@ void GraphSimulator::stepDijkstra() {
 void GraphSimulator::finish() {
     isRunning = false; isFinished = true;
     if (endNode != -1 && hasNode(endNode)) {
+        const Node* end = getNodeById(endNode);
+        if (end == nullptr || (endNode != startNode && end->parent == -1)) {
+            return;
+        }
         int curr = endNode;
         while (curr != -1) {
             Node* node = getNodeById(curr);
@@ -245,9 +255,11 @@ bool GraphSimulator::isSimulationRunning() const { return isRunning; }
 bool GraphSimulator::hasFinished() const { return isFinished; }
 
 void GraphSimulator::togglePause() {
-    if (!isFinished) {
-        isRunning = !isRunning;
+    if (isFinished) {
+        start();
+        return;
     }
+    isRunning = !isRunning;
 }
 
 int GraphSimulator::getStartNode() const { return startNode; }
