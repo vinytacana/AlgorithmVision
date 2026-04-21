@@ -192,9 +192,10 @@ void SortSimulator::setArraySize(int size) {
 int SortSimulator::getArraySize() const { return arraySize; }
 
 void SortSimulator::toggleSorting() {
-    if (!isFinished) {
-        isSorting = !isSorting;
+    if (isFinished) {
+        reset();
     }
+    isSorting = !isSorting;
 }
 
 bool SortSimulator::isSortingActive() const { return isSorting; }
