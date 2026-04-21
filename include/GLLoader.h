@@ -1,7 +1,7 @@
 #ifndef GL_LOADER_H
 #define GL_LOADER_H
 
-#if __has_include(<glad/gl.h>)
+#if defined(ALGORITHM_VISION_USE_GLAD)
 #include <glad/gl.h>
 #define ALGORITHM_VISION_HAS_GLAD 1
 #else
