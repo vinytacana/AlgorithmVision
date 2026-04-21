@@ -1,15 +1,20 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include <GL/glew.h>
+#include "GLLoader.h"
 #include <string>
 #include <unordered_map>
 #include <glm/glm.hpp>
 
 class Shader {
 public:
-    unsigned int ID;
+    unsigned int ID = 0;
     Shader(const char* vertexPath, const char* fragmentPath);
+    ~Shader();
+    Shader(const Shader&) = delete;
+    Shader& operator=(const Shader&) = delete;
+    Shader(Shader&& other) noexcept;
+    Shader& operator=(Shader&& other) noexcept;
     void use();
 
     // Cache-based uniform setters
@@ -21,7 +26,7 @@ public:
 private:
     std::unordered_map<std::string, int> uniformLocationCache;
     int getUniformLocation(const std::string& name);
-    void checkCompileErrors(unsigned int shader, std::string type);
+    void checkCompileErrors(unsigned int shader, const std::string& type);
 };
 
 #endif
