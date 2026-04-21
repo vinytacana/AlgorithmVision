@@ -1,29 +1,36 @@
 #include "SortSimulator.h"
-#include <GL/glew.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
 #include <random>
 #include <cmath>
+#include <stdexcept>
 
 SortSimulator::SortSimulator() { reset(); setupMesh(); }
 
+SortSimulator::~SortSimulator() {
+    if (vbo != 0) glDeleteBuffers(1, &vbo);
+    if (vao != 0) glDeleteVertexArrays(1, &vao);
+}
+
 void SortSimulator::reset() {
     data.resize(arraySize);
+    std::random_device rd;
+    std::mt19937 rng(rd());
+
     if (distribution == RANDOM) {
         for (int i = 0; i < arraySize; ++i) data[i] = i + 1;
-        auto rd = std::random_device {}; auto rng = std::default_random_engine { rd() };
         std::shuffle(data.begin(), data.end(), rng);
     } else if (distribution == REVERSED) {
         for (int i = 0; i < arraySize; ++i) data[i] = arraySize - i;
     } else if (distribution == NEARLY_SORTED) {
         for (int i = 0; i < arraySize; ++i) data[i] = i + 1;
-        for (int i = 0; i < arraySize / 10; ++i) std::swap(data[rand() % arraySize], data[rand() % arraySize]);
+        std::uniform_int_distribution<int> dist(0, arraySize - 1);
+        for (int i = 0; i < arraySize / 10; ++i) std::swap(data[dist(rng)], data[dist(rng)]);
     } else if (distribution == FEW_UNIQUE) {
         int uniqueCount = 5;
         for (int i = 0; i < arraySize; ++i) data[i] = ((i % uniqueCount) + 1) * (arraySize / uniqueCount);
-        auto rd = std::random_device {}; auto rng = std::default_random_engine { rd() };
         std::shuffle(data.begin(), data.end(), rng);
     }
     comparisons = 0; writes = 0; isSorting = false; isFinished = false; isFinishing = false;
@@ -37,10 +44,10 @@ void SortSimulator::clearVisuals() { comp1 = comp2 = write1 = write2 = pivotIdx 
 
 void SortSimulator::setupMesh() {
     float vertices[] = { 0,0,0, 1,0,0, 1,1,0, 0,1,0 };
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -109,10 +116,8 @@ void SortSimulator::render(Shader& shader, int screenWidth, int screenHeight) {
     glm::mat4 projection = glm::ortho(0.0f, (float)screenWidth, 0.0f, (float)screenHeight, -1.0f, 1.0f);
     shader.setMat4("projection", projection);
     
-    glBindVertexArray(VAO);
+    glBindVertexArray(vao);
     
-    float barWidth = (float)screenWidth / arraySize;
-    float heightScale = (float)screenHeight / arraySize;
     float centerX = screenWidth / 2.0f;
     float centerY = screenHeight / 2.0f;
     float radiusFactor = std::min(screenWidth, screenHeight) * 0.4f;
@@ -151,3 +156,53 @@ void SortSimulator::render(Shader& shader, int screenWidth, int screenHeight) {
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     }
 }
+
+void SortSimulator::setAlgorithm(Algorithm algorithm) {
+    if (selectedAlgo != algorithm) {
+        selectedAlgo = algorithm;
+        reset();
+    }
+}
+
+Algorithm SortSimulator::getAlgorithm() const { return selectedAlgo; }
+
+void SortSimulator::setRenderMode(RenderMode mode) { renderMode = mode; }
+
+RenderMode SortSimulator::getRenderMode() const { return renderMode; }
+
+void SortSimulator::setDistribution(ArrayDistribution dist) {
+    if (distribution != dist) {
+        distribution = dist;
+        reset();
+    }
+}
+
+ArrayDistribution SortSimulator::getDistribution() const { return distribution; }
+
+void SortSimulator::setArraySize(int size) {
+    if (size <= 0) {
+        throw std::invalid_argument("arraySize must be positive");
+    }
+    if (arraySize != size) {
+        arraySize = size;
+        reset();
+    }
+}
+
+int SortSimulator::getArraySize() const { return arraySize; }
+
+void SortSimulator::toggleSorting() {
+    if (!isFinished) {
+        isSorting = !isSorting;
+    }
+}
+
+bool SortSimulator::isSortingActive() const { return isSorting; }
+
+bool SortSimulator::isFinishingAnimation() const { return isFinishing; }
+
+bool SortSimulator::hasFinished() const { return isFinished; }
+
+long long SortSimulator::getComparisons() const { return comparisons; }
+
+long long SortSimulator::getWrites() const { return writes; }
