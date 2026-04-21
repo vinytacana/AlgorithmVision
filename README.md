@@ -21,14 +21,16 @@ An interactive, real-time algorithm visualizer built with C++ and OpenGL. Explor
 *   **UI:** Dear ImGui
 *   **Windowing & Input:** GLFW
 *   **Mathematics:** GLM
-*   **Extensions:** GLEW
+*   **Extensions:** GLAD (optional) or GLEW
 
 ## 🏗️ Build Instructions
 
 To build the project, you need to have a C++ compiler, CMake, and the following dependencies installed:
 - GLFW
-- GLEW
 - GLM
+- OpenGL loader:
+  - GLEW, or
+  - GLAD via `glad::glad` package or vendored files in `external/glad/`
 
 ### Linux
 ```bash
@@ -39,6 +41,12 @@ make
 ./AlgorithmVision
 ```
 
-## 📜 License
+To prefer GLAD when available:
+```bash
+cmake -DALGORITHM_VISION_USE_GLAD=ON ..
+make
+```
 
-This project is open-source. See the [LICENSE](LICENSE) file for more details.
+## Notes
+
+The repository currently does not include a `LICENSE` file.
