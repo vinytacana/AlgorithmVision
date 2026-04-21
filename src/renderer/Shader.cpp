@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <stdexcept>
 #include <glm/gtc/type_ptr.hpp>
 
 Shader::Shader(const char* vertexPath, const char* fragmentPath) {
@@ -21,8 +22,8 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath) {
         fShaderFile.close();
         vertexCode = vShaderStream.str();
         fragmentCode = fShaderStream.str();
-    } catch (std::ifstream::failure& e) {
-        std::cerr << "ERRO::SHADER::ARQUIVO_NAO_LIDO" << std::endl;
+    } catch (const std::ifstream::failure&) {
+        throw std::runtime_error(std::string("ERRO::SHADER::ARQUIVO_NAO_LIDO: ") + vertexPath + " / " + fragmentPath);
     }
     const char* vShaderCode = vertexCode.c_str();
     const char* fShaderCode = fragmentCode.c_str();
@@ -42,6 +43,28 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath) {
     checkCompileErrors(ID, "PROGRAM");
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+}
+
+Shader::~Shader() {
+    if (ID != 0) {
+        glDeleteProgram(ID);
+    }
+}
+
+Shader::Shader(Shader&& other) noexcept : ID(other.ID), uniformLocationCache(std::move(other.uniformLocationCache)) {
+    other.ID = 0;
+}
+
+Shader& Shader::operator=(Shader&& other) noexcept {
+    if (this != &other) {
+        if (ID != 0) {
+            glDeleteProgram(ID);
+        }
+        ID = other.ID;
+        uniformLocationCache = std::move(other.uniformLocationCache);
+        other.ID = 0;
+    }
+    return *this;
 }
 
 void Shader::use() { glUseProgram(ID); }
@@ -70,20 +93,20 @@ void Shader::setVec3(const std::string& name, float x, float y, float z) {
     glUniform3f(getUniformLocation(name), x, y, z);
 }
 
-void Shader::checkCompileErrors(unsigned int shader, std::string type) {
+void Shader::checkCompileErrors(unsigned int shader, const std::string& type) {
     int success;
     char infoLog[1024];
     if (type != "PROGRAM") {
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
         if (!success) {
             glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-            std::cerr << "ERRO::SHADER_COMPILATION_ERROR: " << type << "\n" << infoLog << std::endl;
+            throw std::runtime_error("ERRO::SHADER_COMPILATION_ERROR: " + type + "\n" + infoLog);
         }
     } else {
         glGetProgramiv(shader, GL_LINK_STATUS, &success);
         if (!success) {
             glGetProgramInfoLog(shader, 1024, NULL, infoLog);
-            std::cerr << "ERRO::PROGRAM_LINKING_ERROR: " << type << "\n" << infoLog << std::endl;
+            throw std::runtime_error("ERRO::PROGRAM_LINKING_ERROR: " + type + "\n" + infoLog);
         }
     }
 }
