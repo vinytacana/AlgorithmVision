@@ -1,11 +1,17 @@
 #include "GraphSimulator.h"
-#include <GL/glew.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
 #include <cmath>
 
 GraphSimulator::GraphSimulator() { createDefaultGraph(); setupMesh(); }
+
+GraphSimulator::~GraphSimulator() {
+    if (lineVBO != 0) glDeleteBuffers(1, &lineVBO);
+    if (lineVAO != 0) glDeleteVertexArrays(1, &lineVAO);
+    if (quadVBO != 0) glDeleteBuffers(1, &quadVBO);
+    if (quadVAO != 0) glDeleteVertexArrays(1, &quadVAO);
+}
 
 void GraphSimulator::createDefaultGraph() {
     nodes.clear(); edges.clear();
@@ -16,16 +22,22 @@ void GraphSimulator::createDefaultGraph() {
     addEdge(0, 1, 1.0f); addEdge(1, 2, 2.0f); addEdge(2, 3, 3.0f);
     addEdge(3, 4, 1.0f); addEdge(4, 5, 2.0f); addEdge(5, 0, 1.0f);
     addEdge(0, 3, 5.0f);
+    rebuildNodeIndex();
+    sanitizeSelection();
 }
 
 void GraphSimulator::addNode(glm::vec2 pos) {
     int newId = 0; for(auto& n : nodes) if(n.id >= newId) newId = n.id + 1;
     nodes.push_back({pos, NORMAL, newId});
+    rebuildNodeIndex();
+    sanitizeSelection();
 }
 
 void GraphSimulator::removeNode(int id) {
     nodes.erase(std::remove_if(nodes.begin(), nodes.end(), [id](const Node& n){ return n.id == id; }), nodes.end());
     edges.erase(std::remove_if(edges.begin(), edges.end(), [id](const Edge& e){ return e.from == id || e.to == id; }), edges.end());
+    rebuildNodeIndex();
+    sanitizeSelection();
     reset();
 }
 
@@ -51,32 +63,51 @@ int GraphSimulator::findNodeAt(glm::vec2 pos) {
 }
 
 void GraphSimulator::handleMouseInteraction(double x, double y, bool leftPressed, bool rightPressed, bool shiftDown, bool ctrlDown, int w, int h) {
+    (void)w;
     glm::vec2 mousePos((float)x, (float)(h - y));
     int nodeUnderMouse = findNodeAt(mousePos);
-    if (rightPressed && nodeUnderMouse != -1) { removeNode(nodeUnderMouse); return; }
+    if (rightPressed && !wasRightPressed && nodeUnderMouse != -1) {
+        removeNode(nodeUnderMouse);
+        wasRightPressed = rightPressed;
+        wasLeftPressed = leftPressed;
+        return;
+    }
     if (leftPressed) {
-        if (shiftDown && nodeUnderMouse == -1) addNode(mousePos);
+        if (shiftDown && nodeUnderMouse == -1 && !wasLeftPressed) addNode(mousePos);
         else if (ctrlDown && nodeUnderMouse != -1) {
-            if (connectingFrom == -1) connectingFrom = nodeUnderMouse;
-            else if (connectingFrom != nodeUnderMouse) { addEdge(connectingFrom, nodeUnderMouse, 1.0f); connectingFrom = -1; }
-        } else if (nodeUnderMouse != -1) { draggedNode = nodeUnderMouse; nodes[draggedNode].pos = mousePos; }
-    } else { draggedNode = -1; if (!ctrlDown) connectingFrom = -1; }
+            if (!wasLeftPressed) {
+                if (connectingFrom == -1) connectingFrom = nodeUnderMouse;
+                else if (connectingFrom != nodeUnderMouse) { addEdge(connectingFrom, nodeUnderMouse, 1.0f); connectingFrom = -1; }
+            }
+        } else if (nodeUnderMouse != -1 || draggedNode != -1) {
+            if (draggedNode == -1) draggedNode = nodeUnderMouse;
+            if (Node* dragged = getNodeById(draggedNode)) dragged->pos = mousePos;
+        }
+    } else {
+        draggedNode = -1;
+        if (!ctrlDown) connectingFrom = -1;
+    }
+    wasLeftPressed = leftPressed;
+    wasRightPressed = rightPressed;
 }
 
 void GraphSimulator::reset() {
     for (auto& n : nodes) { n.state = NORMAL; n.dist = 1e9; n.parent = -1; }
     visited.clear(); while(!q_bfs.empty()) q_bfs.pop(); while(!s_dfs.empty()) s_dfs.pop(); pq_dijkstra.clear();
-    isRunning = false; isFinished = false;
+    isRunning = false; isFinished = false; draggedNode = -1; connectingFrom = -1;
+    sanitizeSelection();
 }
 
 void GraphSimulator::start() {
     if (nodes.empty()) return;
     reset(); isRunning = true;
-    bool exists = false; for(auto& n : nodes) if(n.id == startNode) exists = true;
-    if (!exists) startNode = nodes[0].id;
+    sanitizeSelection();
     if (selectedAlgo == BFS) q_bfs.push(startNode);
     else if (selectedAlgo == DFS) s_dfs.push(startNode);
-    else if (selectedAlgo == DIJKSTRA) { for(auto& n : nodes) if(n.id == startNode) n.dist = 0; pq_dijkstra.insert({0, startNode}); }
+    else if (selectedAlgo == DIJKSTRA) {
+        if (Node* start = getNodeById(startNode)) start->dist = 0.0f;
+        pq_dijkstra.insert({0, startNode});
+    }
 }
 
 void GraphSimulator::step() {
@@ -91,10 +122,13 @@ void GraphSimulator::stepBFS() {
     int curr = q_bfs.front(); q_bfs.pop();
     if (visited.count(curr)) { stepBFS(); return; }
     visited.insert(curr);
-    for (auto& n : nodes) if(n.id == curr) n.state = VISITED;
+    if (Node* current = getNodeById(curr)) current->state = VISITED;
     for (auto& e : edges) if (e.from == curr && !visited.count(e.to)) {
         q_bfs.push(e.to);
-        for(auto& n : nodes) if(n.id == e.to) { n.state = QUEUED; if (n.parent == -1) n.parent = curr; }
+        if (Node* next = getNodeById(e.to)) {
+            next->state = QUEUED;
+            if (next->parent == -1) next->parent = curr;
+        }
     }
 }
 
@@ -103,10 +137,13 @@ void GraphSimulator::stepDFS() {
     int curr = s_dfs.top(); s_dfs.pop();
     if (visited.count(curr)) { stepDFS(); return; }
     visited.insert(curr);
-    for (auto& n : nodes) if(n.id == curr) n.state = VISITED;
+    if (Node* current = getNodeById(curr)) current->state = VISITED;
     for (auto& e : edges) if (e.from == curr && !visited.count(e.to)) {
         s_dfs.push(e.to);
-        for(auto& n : nodes) if(n.id == e.to) { n.state = QUEUED; n.parent = curr; }
+        if (Node* next = getNodeById(e.to)) {
+            next->state = QUEUED;
+            next->parent = curr;
+        }
     }
 }
 
@@ -115,19 +152,34 @@ void GraphSimulator::stepDijkstra() {
     int curr = pq_dijkstra.begin()->second; pq_dijkstra.erase(pq_dijkstra.begin());
     if (visited.count(curr)) { stepDijkstra(); return; }
     visited.insert(curr);
-    for (auto& n : nodes) if(n.id == curr) n.state = VISITED;
+    Node* current = getNodeById(curr);
+    if (current == nullptr) return;
+    current->state = VISITED;
+    const float d_u = current->dist;
     for (auto& e : edges) if (e.from == curr) {
-        float d_u = 1e9; for(auto& n : nodes) if(n.id == curr) d_u = n.dist;
-        for(auto& n_to : nodes) if(n_to.id == e.to) {
+        if (Node* next = getNodeById(e.to)) {
             float newDist = d_u + e.weight;
-            if (newDist < n_to.dist) { n_to.dist = newDist; n_to.parent = curr; pq_dijkstra.insert({newDist, n_to.id}); n_to.state = QUEUED; }
+            if (newDist < next->dist) {
+                next->dist = newDist;
+                next->parent = curr;
+                pq_dijkstra.insert({newDist, next->id});
+                next->state = QUEUED;
+            }
         }
     }
 }
 
 void GraphSimulator::finish() {
     isRunning = false; isFinished = true;
-    if (endNode != -1) { int curr = endNode; while (curr != -1) { bool found = false; for(auto& n : nodes) if(n.id == curr) { n.state = PATH; curr = n.parent; found = true; break; } if(!found) break; } }
+    if (endNode != -1 && hasNode(endNode)) {
+        int curr = endNode;
+        while (curr != -1) {
+            Node* node = getNodeById(curr);
+            if (node == nullptr) break;
+            node->state = PATH;
+            curr = node->parent;
+        }
+    }
 }
 
 void GraphSimulator::render(Shader& circleShader, Shader& lineShader, int w, int h) {
@@ -141,12 +193,10 @@ void GraphSimulator::render(Shader& circleShader, Shader& lineShader, int w, int
     
     glLineWidth(2.5f);
     glBindVertexArray(lineVAO);
-    for (auto& e : edges) {
-        Node *n1 = nullptr, *n2 = nullptr; 
-        for(auto& n : nodes) { 
-            if(n.id == e.from) n1 = &n; 
-            if(n.id == e.to) n2 = &n; 
-        }
+    for (std::size_t edgeIndex = 0; edgeIndex < edges.size(); edgeIndex += 2) {
+        const Edge& e = edges[edgeIndex];
+        const Node* n1 = getNodeById(e.from);
+        const Node* n2 = getNodeById(e.to);
         if(!n1 || !n2) continue;
         
         float pts[] = { n1->pos.x, n1->pos.y, 0, n2->pos.x, n2->pos.y, 0 };
@@ -179,4 +229,95 @@ void GraphSimulator::render(Shader& circleShader, Shader& lineShader, int w, int
         
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     }
+}
+
+void GraphSimulator::setAlgorithm(GraphAlgorithm algorithm) {
+    if (selectedAlgo != algorithm) {
+        selectedAlgo = algorithm;
+        reset();
+    }
+}
+
+GraphAlgorithm GraphSimulator::getAlgorithm() const { return selectedAlgo; }
+
+bool GraphSimulator::isSimulationRunning() const { return isRunning; }
+
+bool GraphSimulator::hasFinished() const { return isFinished; }
+
+void GraphSimulator::togglePause() {
+    if (!isFinished) {
+        isRunning = !isRunning;
+    }
+}
+
+int GraphSimulator::getStartNode() const { return startNode; }
+
+int GraphSimulator::getEndNode() const { return endNode; }
+
+void GraphSimulator::setStartNode(int id) {
+    if (hasNode(id)) startNode = id;
+}
+
+void GraphSimulator::setEndNode(int id) {
+    if (id == -1 || hasNode(id)) endNode = id;
+}
+
+bool GraphSimulator::hasNode(int id) const {
+    return nodeIndexById.find(id) != nodeIndexById.end();
+}
+
+std::vector<int> GraphSimulator::getNodeIds() const {
+    std::vector<int> ids;
+    ids.reserve(nodes.size());
+    for (const auto& node : nodes) ids.push_back(node.id);
+    return ids;
+}
+
+const std::vector<Node>& GraphSimulator::getNodes() const { return nodes; }
+
+const std::vector<Edge>& GraphSimulator::getEdges() const { return edges; }
+
+void GraphSimulator::updateUndirectedEdgeWeight(int u, int v, float weight) {
+    for (auto& edge : edges) {
+        if ((edge.from == u && edge.to == v) || (edge.from == v && edge.to == u)) {
+            edge.weight = weight;
+        }
+    }
+}
+
+int GraphSimulator::findNodeIndexById(int id) const {
+    auto it = nodeIndexById.find(id);
+    if (it == nodeIndexById.end()) return -1;
+    return static_cast<int>(it->second);
+}
+
+Node* GraphSimulator::getNodeById(int id) {
+    const int index = findNodeIndexById(id);
+    if (index < 0) return nullptr;
+    return &nodes[static_cast<std::size_t>(index)];
+}
+
+const Node* GraphSimulator::getNodeById(int id) const {
+    const int index = findNodeIndexById(id);
+    if (index < 0) return nullptr;
+    return &nodes[static_cast<std::size_t>(index)];
+}
+
+void GraphSimulator::rebuildNodeIndex() {
+    nodeIndexById.clear();
+    for (std::size_t index = 0; index < nodes.size(); ++index) {
+        nodeIndexById[nodes[index].id] = index;
+    }
+}
+
+void GraphSimulator::sanitizeSelection() {
+    if (nodes.empty()) {
+        startNode = 0;
+        endNode = -1;
+        return;
+    }
+    if (!hasNode(startNode)) startNode = nodes.front().id;
+    if (endNode != -1 && !hasNode(endNode)) endNode = -1;
+    if (draggedNode != -1 && !hasNode(draggedNode)) draggedNode = -1;
+    if (connectingFrom != -1 && !hasNode(connectingFrom)) connectingFrom = -1;
 }
