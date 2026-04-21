@@ -50,6 +50,7 @@ target_link_libraries(${PROJECT_NAME}
 
 if (ALGORITHM_VISION_USE_GLAD)
     find_package(glad CONFIG QUIET)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ALGORITHM_VISION_USE_GLAD)
 
     if (TARGET glad::glad)
         target_link_libraries(${PROJECT_NAME} PRIVATE glad::glad)
