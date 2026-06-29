@@ -8,8 +8,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(ALGORITHM_VISION_USE_GLAD "Use GLAD instead of GLEW when available" OFF)
-
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
@@ -27,7 +25,6 @@ set(SOURCES
     src/main.cpp
     src/renderer/Shader.cpp
     src/algorithms/SortSimulator.cpp
-    src/algorithms/GraphSimulator.cpp
     src/ui/UIComponents.cpp
     ${IMGUI_SOURCES}
 )
@@ -48,25 +45,36 @@ target_link_libraries(${PROJECT_NAME}
         ${CMAKE_DL_LIBS}
 )
 
-if (ALGORITHM_VISION_USE_GLAD)
-    find_package(glad CONFIG QUIET)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ALGORITHM_VISION_USE_GLAD)
-
-    if (TARGET glad::glad)
-        target_link_libraries(${PROJECT_NAME} PRIVATE glad::glad)
-    elseif (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/glad/src/gl.c" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include/glad/gl.h")
-        add_library(algorithm_vision_glad STATIC external/glad/src/gl.c)
-        target_include_directories(algorithm_vision_glad PUBLIC external/glad/include)
-        target_link_libraries(algorithm_vision_glad PUBLIC ${CMAKE_DL_LIBS})
-        target_link_libraries(${PROJECT_NAME} PRIVATE algorithm_vision_glad)
-    else()
-        message(FATAL_ERROR "ALGORITHM_VISION_USE_GLAD=ON, mas GLAD nao foi encontrado. Instale um pacote CMake glad::glad ou adicione os arquivos em external/glad/.")
-    endif()
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/glad/include/glad/glad.h")
+    add_library(algorithm_vision_glad STATIC glad/src/glad.c)
+    target_include_directories(algorithm_vision_glad PUBLIC glad/include)
+    target_link_libraries(algorithm_vision_glad PUBLIC ${CMAKE_DL_LIBS})
+    target_link_libraries(${PROJECT_NAME} PRIVATE algorithm_vision_glad)
 else()
-    find_package(GLEW REQUIRED)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${GLEW_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${GLEW_LIBRARIES})
+    message(FATAL_ERROR "GLAD e obrigatorio. Adicione os arquivos em glad/src/glad.c e glad/include/glad/glad.h.")
 endif()
+
+enable_testing()
+
+add_executable(SortSimulatorTests
+    tests/SortSimulatorTests.cpp
+    src/algorithms/SortSimulator.cpp
+    src/renderer/Shader.cpp
+)
+
+target_include_directories(SortSimulatorTests
+    PRIVATE
+        include
+)
+
+target_link_libraries(SortSimulatorTests
+    PRIVATE
+        glm::glm
+        OpenGL::GL
+        algorithm_vision_glad
+)
+
+add_test(NAME SortSimulatorTests COMMAND SortSimulatorTests)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
