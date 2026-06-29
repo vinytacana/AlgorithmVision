@@ -6,13 +6,13 @@
 #include <utility>
 #include "Shader.h"
 
-enum Algorithm { BUBBLE_SORT, QUICK_SORT, MERGE_SORT };
+enum Algorithm { BUBBLE_SORT, QUICK_SORT, MERGE_SORT, INSERTION_SORT, SELECTION_SORT, SHELL_SORT };
 enum RenderMode { BARS, DOTS, CIRCULAR };
 enum ArrayDistribution { RANDOM, REVERSED, NEARLY_SORTED, FEW_UNIQUE };
 
 class SortSimulator {
 public:
-    SortSimulator();
+    explicit SortSimulator(bool initializeGraphics = true);
     ~SortSimulator();
     SortSimulator(const SortSimulator&) = delete;
     SortSimulator& operator=(const SortSimulator&) = delete;
@@ -32,6 +32,8 @@ public:
 
     void setArraySize(int size);
     int getArraySize() const;
+    void setData(const std::vector<int>& values);
+    const std::vector<int>& getData() const;
 
     void toggleSorting();
     bool isSortingActive() const;
@@ -65,7 +67,7 @@ private:
     RenderMode renderMode = BARS;
     ArrayDistribution distribution = RANDOM;
 
-    // Estados internos Bubble, Quick, Merge
+    // Estados internos Bubble, Quick, Merge, Insertion, Selection, Shell
     int b_i = 0, b_j = 0;
     std::stack<std::pair<int, int>> q_stack;
     int q_low = 0, q_high = 0, q_pivot_val = 0, q_i = 0, q_j = 0;
@@ -73,12 +75,28 @@ private:
     int m_size = 1, m_l = 0, m_i = 0, m_j = 0, m_k = 0, m_mid = 0, m_right = 0;
     std::vector<int> m_temp;
     bool m_merging = false;
+    int ins_i = 1;
+    int ins_j = 0;
+    int ins_key = 0;
+    bool ins_inserting = false;
+    int sel_i = 0;
+    int sel_j = 1;
+    int sel_min = 0;
+    int sh_gap = 0;
+    int sh_i = 0;
+    int sh_j = 0;
+    int sh_temp = 0;
+    bool sh_inserting = false;
 
     void clearVisuals();
+    void resetAlgorithmState();
     void setupMesh();
     void stepBubble();
     void stepQuick();
     void stepMerge();
+    void stepInsertion();
+    void stepSelection();
+    void stepShell();
     void startFinishAnim();
 };
 
