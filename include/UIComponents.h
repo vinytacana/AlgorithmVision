@@ -4,6 +4,6 @@
 #include "imgui.h"
 
 void setupTheme(bool darkMode);
-const char* getAlgorithmDescription(int algo, bool sorting);
+const char* getAlgorithmDescription(int algo);
 
 #endif
