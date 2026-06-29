@@ -7,7 +7,10 @@
 #include <cmath>
 #include <stdexcept>
 
-SortSimulator::SortSimulator() { reset(); setupMesh(); }
+SortSimulator::SortSimulator(bool initializeGraphics) {
+    reset();
+    if (initializeGraphics) setupMesh();
+}
 
 SortSimulator::~SortSimulator() {
     if (vbo != 0) glDeleteBuffers(1, &vbo);
@@ -33,11 +36,18 @@ void SortSimulator::reset() {
         for (int i = 0; i < arraySize; ++i) data[i] = ((i % uniqueCount) + 1) * (arraySize / uniqueCount);
         std::shuffle(data.begin(), data.end(), rng);
     }
+    resetAlgorithmState();
+}
+
+void SortSimulator::resetAlgorithmState() {
     comparisons = 0; writes = 0; isSorting = false; isFinished = false; isFinishing = false;
     finishIdx = -1; clearVisuals();
     b_i = 0; b_j = 0; while(!q_stack.empty()) q_stack.pop();
     q_stack.push({0, arraySize - 1}); q_partitioning = false;
     m_size = 1; m_l = 0; m_merging = false;
+    ins_i = 1; ins_j = 0; ins_key = 0; ins_inserting = false;
+    sel_i = 0; sel_j = 1; sel_min = 0;
+    sh_gap = std::max(1, arraySize / 2); sh_i = sh_gap; sh_j = sh_gap; sh_temp = 0; sh_inserting = false;
 }
 
 void SortSimulator::clearVisuals() { comp1 = comp2 = write1 = write2 = pivotIdx = rangeL = rangeR = -1; }
@@ -60,6 +70,9 @@ void SortSimulator::step() {
     if (selectedAlgo == BUBBLE_SORT) stepBubble();
     else if (selectedAlgo == QUICK_SORT) stepQuick();
     else if (selectedAlgo == MERGE_SORT) stepMerge();
+    else if (selectedAlgo == INSERTION_SORT) stepInsertion();
+    else if (selectedAlgo == SELECTION_SORT) stepSelection();
+    else if (selectedAlgo == SHELL_SORT) stepShell();
 }
 
 void SortSimulator::stepBubble() {
@@ -107,6 +120,121 @@ void SortSimulator::stepMerge() {
             writes += m_temp.size(); m_l += 2 * m_size; m_merging = false; write1 = m_l - 2 * m_size; write2 = m_right; return; }
         write1 = m_l + (int)m_temp.size() - 1;
     }
+}
+
+void SortSimulator::stepInsertion() {
+    if (ins_i >= arraySize) {
+        startFinishAnim();
+        return;
+    }
+
+    if (!ins_inserting) {
+        ins_key = data[ins_i];
+        ins_j = ins_i - 1;
+        pivotIdx = ins_i;
+        ins_inserting = true;
+    }
+
+    pivotIdx = ins_i;
+    if (ins_j >= 0) {
+        comp1 = ins_j;
+        comp2 = ins_j + 1;
+        comparisons++;
+        if (data[ins_j] > ins_key) {
+            data[ins_j + 1] = data[ins_j];
+            write1 = ins_j;
+            write2 = ins_j + 1;
+            writes++;
+            ins_j--;
+            return;
+        }
+    }
+
+    data[ins_j + 1] = ins_key;
+    write1 = ins_j + 1;
+    writes++;
+    ins_i++;
+    ins_inserting = false;
+}
+
+void SortSimulator::stepSelection() {
+    if (sel_i >= arraySize - 1) {
+        startFinishAnim();
+        return;
+    }
+
+    rangeL = sel_i;
+    rangeR = arraySize - 1;
+    pivotIdx = sel_min;
+
+    if (sel_j < arraySize) {
+        comp1 = sel_min;
+        comp2 = sel_j;
+        comparisons++;
+        if (data[sel_j] < data[sel_min]) {
+            sel_min = sel_j;
+            pivotIdx = sel_min;
+        }
+        sel_j++;
+        return;
+    }
+
+    if (sel_min != sel_i) {
+        std::swap(data[sel_i], data[sel_min]);
+        write1 = sel_i;
+        write2 = sel_min;
+        writes++;
+    }
+    sel_i++;
+    sel_min = sel_i;
+    sel_j = sel_i + 1;
+}
+
+void SortSimulator::stepShell() {
+    if (sh_gap <= 0) {
+        startFinishAnim();
+        return;
+    }
+
+    if (sh_i >= arraySize) {
+        sh_gap /= 2;
+        if (sh_gap <= 0) {
+            startFinishAnim();
+            return;
+        }
+        sh_i = sh_gap;
+        sh_inserting = false;
+    }
+
+    if (!sh_inserting) {
+        sh_temp = data[sh_i];
+        sh_j = sh_i;
+        sh_inserting = true;
+    }
+
+    rangeL = 0;
+    rangeR = arraySize - 1;
+    pivotIdx = sh_i;
+
+    if (sh_j >= sh_gap) {
+        comp1 = sh_j - sh_gap;
+        comp2 = sh_j;
+        comparisons++;
+        if (data[sh_j - sh_gap] > sh_temp) {
+            data[sh_j] = data[sh_j - sh_gap];
+            write1 = sh_j - sh_gap;
+            write2 = sh_j;
+            writes++;
+            sh_j -= sh_gap;
+            return;
+        }
+    }
+
+    data[sh_j] = sh_temp;
+    write1 = sh_j;
+    writes++;
+    sh_i++;
+    sh_inserting = false;
 }
 
 void SortSimulator::startFinishAnim() { isSorting = false; isFinishing = true; finishIdx = 0; clearVisuals(); }
@@ -190,6 +318,17 @@ void SortSimulator::setArraySize(int size) {
 }
 
 int SortSimulator::getArraySize() const { return arraySize; }
+
+void SortSimulator::setData(const std::vector<int>& values) {
+    if (values.empty()) {
+        throw std::invalid_argument("data must not be empty");
+    }
+    data = values;
+    arraySize = static_cast<int>(data.size());
+    resetAlgorithmState();
+}
+
+const std::vector<int>& SortSimulator::getData() const { return data; }
 
 void SortSimulator::toggleSorting() {
     if (isFinished) {
