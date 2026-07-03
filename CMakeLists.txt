@@ -45,6 +45,13 @@ target_link_libraries(${PROJECT_NAME}
         ${CMAKE_DL_LIBS}
 )
 
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders"
+    VERBATIM
+)
+
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/glad/include/glad/glad.h")
     add_library(algorithm_vision_glad STATIC glad/src/glad.c)
     target_include_directories(algorithm_vision_glad PUBLIC glad/include)
@@ -78,6 +85,8 @@ add_test(NAME SortSimulatorTests COMMAND SortSimulatorTests)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(SortSimulatorTests PRIVATE -Wall -Wextra -Wpedantic)
 elseif (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+    target_compile_options(SortSimulatorTests PRIVATE /W4)
 endif()

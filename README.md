@@ -1,18 +1,15 @@
 # AlgorithmVision
 
-An interactive, real-time algorithm visualizer built with C++ and OpenGL. Explore sorting and graph algorithms with dynamic, shader-powered visualizations and integrated UI controls.
+An interactive, real-time sorting algorithm visualizer built with C++ and OpenGL. Explore sorting strategies with dynamic, shader-powered visualizations and integrated UI controls.
 
 ## 🚀 Key Features
 
-*   **Sorting Visualizer:** 
-    *   **Algorithms:** Bubble Sort, Quick Sort, and Merge Sort.
+*   **Sorting Visualizer:**
+    *   **Algorithms:** Bubble Sort, Quick Sort, Merge Sort, Insertion Sort, Selection Sort, Shell Sort, Heap Sort, K-Way Merge Sort, Miracle Sort, Sleepsort, and Bogosort.
     *   **Visual Modes:** Supports **Bar charts**, **Dot plots**, and **Circular** layouts.
     *   **Data Control:** Generate arrays with Random, Reversed, Nearly Sorted, or Few Unique distributions.
-*   **Graph Visualizer:**
-    *   **Algorithms:** Breadth-First Search (BFS), Depth-First Search (DFS), and Dijkstra’s Algorithm.
-    *   **Interactive Builder:** Add, remove, and drag nodes in real-time. Connect nodes to create weighted edges dynamically.
-*   **Intuitive UI:** Integrated control panel using **Dear ImGui** to adjust simulation speed, step through iterations, or reset the state.
-*   **Custom Shader Pipeline:** Uses GLSL vertex and fragment shaders for high-quality rendering and visual highlights of algorithm states (comparisons, visits, paths).
+*   **Intuitive UI:** Integrated control panel using **Dear ImGui** to choose algorithms, tune input data, adjust animation speed, and reset the simulation.
+*   **Custom Shader Pipeline:** Uses GLSL vertex and fragment shaders for visual highlights of algorithm states such as comparisons, writes, pivots, ranges, and completion.
 
 ## 🛠️ Tech Stack
 
@@ -21,16 +18,14 @@ An interactive, real-time algorithm visualizer built with C++ and OpenGL. Explor
 *   **UI:** Dear ImGui
 *   **Windowing & Input:** GLFW
 *   **Mathematics:** GLM
-*   **Extensions:** GLAD (optional) or GLEW
+*   **Extensions:** Vendored GLAD
 
 ## 🏗️ Build Instructions
 
 To build the project, you need to have a C++ compiler, CMake, and the following dependencies installed:
 - GLFW
 - GLM
-- OpenGL loader:
-  - GLEW, or
-  - GLAD via `glad::glad` package or vendored files in `external/glad/`
+- Vendored GLAD files in `glad/src/glad.c` and `glad/include/glad/glad.h`
 
 ### Linux
 ```bash
@@ -41,10 +36,11 @@ make
 ./AlgorithmVision
 ```
 
-To prefer GLAD when available:
+The build copies the `shaders/` directory next to the executable, so running `./AlgorithmVision` from `build/` can find `shaders/bar.vs` and `shaders/bar.fs`.
+
+To run the headless simulator tests:
 ```bash
-cmake -DALGORITHM_VISION_USE_GLAD=ON ..
-make
+ctest --output-on-failure
 ```
 
 ## Notes
