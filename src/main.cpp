@@ -81,18 +81,23 @@ int main() {
                 "Merge Sort",
                 "Insertion Sort",
                 "Selection Sort",
-                "Shell Sort"
+                "Shell Sort",
+                "Heap Sort",
+                "K-Way Merge Sort",
+                "Miracle Sort",
+                "Sleepsort",
+                "Bogosort"
             };
             int curAlgo = static_cast<int>(sortSim.getAlgorithm());
-            if (ImGui::Combo("Algoritmo", &curAlgo, algos, 6)) sortSim.setAlgorithm(static_cast<Algorithm>(curAlgo));
+            if (ImGui::Combo("Algoritmo", &curAlgo, algos, static_cast<int>(sizeof(algos) / sizeof(algos[0])))) sortSim.setAlgorithm(static_cast<Algorithm>(curAlgo));
 
             const char* dists[] = { "Aleatório", "Reverso", "Quase Ordenado", "Poucos Únicos" };
             int curDist = static_cast<int>(sortSim.getDistribution());
-            if (ImGui::Combo("Distribuição", &curDist, dists, 4)) sortSim.setDistribution(static_cast<ArrayDistribution>(curDist));
+            if (ImGui::Combo("Distribuição", &curDist, dists, static_cast<int>(sizeof(dists) / sizeof(dists[0])))) sortSim.setDistribution(static_cast<ArrayDistribution>(curDist));
 
             const char* modes[] = { "Barras", "Dot Plot", "Circular" };
             int curMode = static_cast<int>(sortSim.getRenderMode());
-            if (ImGui::Combo("Visualização", &curMode, modes, 3)) sortSim.setRenderMode(static_cast<RenderMode>(curMode));
+            if (ImGui::Combo("Visualização", &curMode, modes, static_cast<int>(sizeof(modes) / sizeof(modes[0])))) sortSim.setRenderMode(static_cast<RenderMode>(curMode));
 
             int arraySize = sortSim.getArraySize();
             if (ImGui::SliderInt("Tamanho (N)", &arraySize, 10, 1000)) sortSim.setArraySize(arraySize);

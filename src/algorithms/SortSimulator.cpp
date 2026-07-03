@@ -3,11 +3,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
-#include <random>
 #include <cmath>
 #include <stdexcept>
 
-SortSimulator::SortSimulator(bool initializeGraphics) {
+SortSimulator::SortSimulator(bool initializeGraphics) : bogo_rng(std::random_device{}()) {
     reset();
     if (initializeGraphics) setupMesh();
 }
@@ -48,6 +47,9 @@ void SortSimulator::resetAlgorithmState() {
     ins_i = 1; ins_j = 0; ins_key = 0; ins_inserting = false;
     sel_i = 0; sel_j = 1; sel_min = 0;
     sh_gap = std::max(1, arraySize / 2); sh_i = sh_gap; sh_j = sh_gap; sh_temp = 0; sh_inserting = false;
+    hp_phase = 0; hp_heapSize = arraySize; hp_buildIndex = arraySize / 2 - 1; hp_extractIndex = arraySize - 1; hp_siftRoot = 0; hp_sifting = false;
+    kw_initialized = false; kw_writeIndex = 0; kw_source.clear(); kw_output.clear(); kw_runStart.clear(); kw_runEnd.clear(); kw_runCursor.clear();
+    sl_initialized = false; sl_writeIndex = 0; sl_events.clear();
 }
 
 void SortSimulator::clearVisuals() { comp1 = comp2 = write1 = write2 = pivotIdx = rangeL = rangeR = -1; }
@@ -73,6 +75,11 @@ void SortSimulator::step() {
     else if (selectedAlgo == INSERTION_SORT) stepInsertion();
     else if (selectedAlgo == SELECTION_SORT) stepSelection();
     else if (selectedAlgo == SHELL_SORT) stepShell();
+    else if (selectedAlgo == HEAP_SORT) stepHeap();
+    else if (selectedAlgo == K_WAY_MERGE_SORT) stepKWayMerge();
+    else if (selectedAlgo == MIRACLE_SORT) stepMiracle();
+    else if (selectedAlgo == SLEEP_SORT) stepSleep();
+    else if (selectedAlgo == BOGO_SORT) stepBogo();
 }
 
 void SortSimulator::stepBubble() {
@@ -235,6 +242,215 @@ void SortSimulator::stepShell() {
     writes++;
     sh_i++;
     sh_inserting = false;
+}
+
+bool SortSimulator::heapSiftDownStep(int heapSize, int& root) {
+    const int left = 2 * root + 1;
+    const int right = left + 1;
+    if (left >= heapSize) return true;
+
+    int largest = root;
+    comp1 = root;
+    comp2 = left;
+    comparisons++;
+    if (data[left] > data[largest]) largest = left;
+
+    if (right < heapSize) {
+        comp1 = largest;
+        comp2 = right;
+        comparisons++;
+        if (data[right] > data[largest]) largest = right;
+    }
+
+    rangeL = 0;
+    rangeR = heapSize - 1;
+    pivotIdx = root;
+
+    if (largest == root) return true;
+
+    std::swap(data[root], data[largest]);
+    write1 = root;
+    write2 = largest;
+    writes++;
+    root = largest;
+    return false;
+}
+
+void SortSimulator::stepHeap() {
+    if (arraySize <= 1) {
+        startFinishAnim();
+        return;
+    }
+
+    if (hp_phase == 0) {
+        if (hp_buildIndex < 0) {
+            hp_phase = 1;
+            hp_sifting = false;
+            return;
+        }
+        if (!hp_sifting) {
+            hp_siftRoot = hp_buildIndex;
+            hp_heapSize = arraySize;
+            hp_sifting = true;
+        }
+        if (heapSiftDownStep(hp_heapSize, hp_siftRoot)) {
+            hp_sifting = false;
+            hp_buildIndex--;
+        }
+        return;
+    }
+
+    if (hp_extractIndex <= 0) {
+        startFinishAnim();
+        return;
+    }
+
+    if (!hp_sifting) {
+        std::swap(data[0], data[hp_extractIndex]);
+        write1 = 0;
+        write2 = hp_extractIndex;
+        pivotIdx = hp_extractIndex;
+        rangeL = 0;
+        rangeR = hp_extractIndex;
+        writes++;
+        hp_heapSize = hp_extractIndex;
+        hp_extractIndex--;
+        hp_siftRoot = 0;
+        hp_sifting = true;
+        return;
+    }
+
+    if (heapSiftDownStep(hp_heapSize, hp_siftRoot)) {
+        hp_sifting = false;
+    }
+}
+
+void SortSimulator::initializeKWayMerge() {
+    kw_initialized = true;
+    kw_writeIndex = 0;
+    kw_output.clear();
+    kw_output.reserve(data.size());
+    kw_runStart.clear();
+    kw_runEnd.clear();
+    kw_runCursor.clear();
+
+    const int runs = std::min(KW_RUNS, arraySize);
+    for (int run = 0; run < runs; ++run) {
+        const int start = run * arraySize / runs;
+        const int end = (run + 1) * arraySize / runs;
+        std::sort(data.begin() + start, data.begin() + end);
+        kw_runStart.push_back(start);
+        kw_runEnd.push_back(end);
+        kw_runCursor.push_back(start);
+        writes += end - start;
+    }
+    kw_source = data;
+    rangeL = 0;
+    rangeR = arraySize - 1;
+}
+
+void SortSimulator::stepKWayMerge() {
+    if (!kw_initialized) {
+        initializeKWayMerge();
+        return;
+    }
+    if (kw_writeIndex >= arraySize) {
+        startFinishAnim();
+        return;
+    }
+
+    int bestRun = -1;
+    for (int run = 0; run < static_cast<int>(kw_runCursor.size()); ++run) {
+        if (kw_runCursor[run] >= kw_runEnd[run]) continue;
+        if (bestRun == -1) {
+            bestRun = run;
+            continue;
+        }
+        comp1 = kw_runCursor[bestRun];
+        comp2 = kw_runCursor[run];
+        comparisons++;
+        if (kw_source[kw_runCursor[run]] < kw_source[kw_runCursor[bestRun]]) {
+            bestRun = run;
+        }
+    }
+
+    if (bestRun == -1) {
+        startFinishAnim();
+        return;
+    }
+
+    kw_output.push_back(kw_source[kw_runCursor[bestRun]]);
+    kw_runCursor[bestRun]++;
+    data[kw_writeIndex] = kw_output.back();
+    write1 = kw_writeIndex;
+    pivotIdx = kw_writeIndex;
+    rangeL = kw_runStart[bestRun];
+    rangeR = kw_runEnd[bestRun] - 1;
+    writes++;
+    kw_writeIndex++;
+}
+
+void SortSimulator::stepMiracle() {
+    if (std::is_sorted(data.begin(), data.end())) {
+        startFinishAnim();
+        return;
+    }
+
+    rangeL = 0;
+    rangeR = arraySize - 1;
+    pivotIdx = arraySize > 0 ? static_cast<int>(comparisons % arraySize) : -1;
+    comparisons++;
+}
+
+void SortSimulator::initializeSleep() {
+    sl_initialized = true;
+    sl_writeIndex = 0;
+    sl_events.clear();
+    sl_events.reserve(data.size());
+    for (int i = 0; i < arraySize; ++i) {
+        sl_events.push_back({data[i], i});
+    }
+    std::stable_sort(sl_events.begin(), sl_events.end(), [](const auto& lhs, const auto& rhs) {
+        if (lhs.first != rhs.first) return lhs.first < rhs.first;
+        return lhs.second < rhs.second;
+    });
+}
+
+void SortSimulator::stepSleep() {
+    if (!sl_initialized) {
+        initializeSleep();
+        return;
+    }
+    if (sl_writeIndex >= arraySize) {
+        startFinishAnim();
+        return;
+    }
+
+    comp1 = sl_events[sl_writeIndex].second;
+    write1 = sl_writeIndex;
+    pivotIdx = sl_writeIndex;
+    data[sl_writeIndex] = sl_events[sl_writeIndex].first;
+    writes++;
+    sl_writeIndex++;
+}
+
+void SortSimulator::stepBogo() {
+    if (std::is_sorted(data.begin(), data.end())) {
+        startFinishAnim();
+        return;
+    }
+
+    std::shuffle(data.begin(), data.end(), bogo_rng);
+    comparisons += std::max(0, arraySize - 1);
+    writes += arraySize;
+    rangeL = 0;
+    rangeR = arraySize - 1;
+    write1 = 0;
+    write2 = arraySize - 1;
+
+    if (std::is_sorted(data.begin(), data.end())) {
+        startFinishAnim();
+    }
 }
 
 void SortSimulator::startFinishAnim() { isSorting = false; isFinishing = true; finishIdx = 0; clearVisuals(); }

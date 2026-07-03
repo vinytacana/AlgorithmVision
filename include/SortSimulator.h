@@ -1,14 +1,28 @@
 #ifndef SORT_SIMULATOR_H
 #define SORT_SIMULATOR_H
 
+#include <random>
 #include <vector>
 #include <stack>
 #include <utility>
 #include "Shader.h"
 
-enum Algorithm { BUBBLE_SORT, QUICK_SORT, MERGE_SORT, INSERTION_SORT, SELECTION_SORT, SHELL_SORT };
-enum RenderMode { BARS, DOTS, CIRCULAR };
-enum ArrayDistribution { RANDOM, REVERSED, NEARLY_SORTED, FEW_UNIQUE };
+enum Algorithm {
+    BUBBLE_SORT,
+    QUICK_SORT,
+    MERGE_SORT,
+    INSERTION_SORT,
+    SELECTION_SORT,
+    SHELL_SORT,
+    HEAP_SORT,
+    K_WAY_MERGE_SORT,
+    MIRACLE_SORT,
+    SLEEP_SORT,
+    BOGO_SORT,
+    ALGORITHM_COUNT
+};
+enum RenderMode { BARS, DOTS, CIRCULAR, RENDER_MODE_COUNT };
+enum ArrayDistribution { RANDOM, REVERSED, NEARLY_SORTED, FEW_UNIQUE, DISTRIBUTION_COUNT };
 
 class SortSimulator {
 public:
@@ -67,7 +81,7 @@ private:
     RenderMode renderMode = BARS;
     ArrayDistribution distribution = RANDOM;
 
-    // Estados internos Bubble, Quick, Merge, Insertion, Selection, Shell
+    // Estados internos Bubble, Quick, Merge, Insertion, Selection, Shell, Heap, K-Way Merge e memes
     int b_i = 0, b_j = 0;
     std::stack<std::pair<int, int>> q_stack;
     int q_low = 0, q_high = 0, q_pivot_val = 0, q_i = 0, q_j = 0;
@@ -87,6 +101,24 @@ private:
     int sh_j = 0;
     int sh_temp = 0;
     bool sh_inserting = false;
+    int hp_phase = 0;
+    int hp_heapSize = 0;
+    int hp_buildIndex = 0;
+    int hp_extractIndex = 0;
+    int hp_siftRoot = 0;
+    bool hp_sifting = false;
+    static constexpr int KW_RUNS = 4;
+    bool kw_initialized = false;
+    int kw_writeIndex = 0;
+    std::vector<int> kw_source;
+    std::vector<int> kw_output;
+    std::vector<int> kw_runStart;
+    std::vector<int> kw_runEnd;
+    std::vector<int> kw_runCursor;
+    bool sl_initialized = false;
+    int sl_writeIndex = 0;
+    std::vector<std::pair<int, int>> sl_events;
+    std::mt19937 bogo_rng;
 
     void clearVisuals();
     void resetAlgorithmState();
@@ -97,6 +129,14 @@ private:
     void stepInsertion();
     void stepSelection();
     void stepShell();
+    bool heapSiftDownStep(int heapSize, int& root);
+    void stepHeap();
+    void initializeKWayMerge();
+    void stepKWayMerge();
+    void stepMiracle();
+    void initializeSleep();
+    void stepSleep();
+    void stepBogo();
     void startFinishAnim();
 };
 
