@@ -210,6 +210,75 @@ bool testBogoSortFinishesSortedData() {
     return true;
 }
 
+bool testStalinSortRemovesOutOfOrderElements() {
+    SortEngine engine;
+    engine.setAlgorithm(STALIN_SORT);
+    engine.setData({1, 3, 2, 4, 0, 5});
+
+    if (!runUntilFinished(engine, 20)) {
+        std::cerr << "Stalin Sort did not finish\n";
+        return false;
+    }
+
+    if (!expectEqual(engine.getData(), {1, 3, 4, 5}, "Stalin Sort filtered data")) {
+        return false;
+    }
+    if (engine.getArraySize() != 4) {
+        std::cerr << "Stalin Sort did not shrink array size correctly\n";
+        return false;
+    }
+    if (engine.getWrites() != 2) {
+        std::cerr << "Stalin Sort expected 2 removals but got " << engine.getWrites() << '\n';
+        return false;
+    }
+    if (!engine.hasFinished() || engine.isSortingActive() || engine.isFinishingAnimation()) {
+        std::cerr << "Stalin Sort did not settle into final finished state\n";
+        return false;
+    }
+    return true;
+}
+
+bool testThanosSortRemovesSecondHalfImmediately() {
+    SortEngine engine;
+    engine.setAlgorithm(THANOS_SORT);
+    engine.setData({8, 6, 7, 5, 3, 0});
+    engine.toggleSorting();
+    engine.step();
+
+    if (!expectEqual(engine.getData(), {8, 6, 7}, "Thanos Sort snapped half")) {
+        return false;
+    }
+    if (engine.getArraySize() != 3) {
+        std::cerr << "Thanos Sort did not halve array size correctly\n";
+        return false;
+    }
+    if (!engine.isFinishingAnimation()) {
+        std::cerr << "Thanos Sort should enter finishing animation immediately after snap\n";
+        return false;
+    }
+    return true;
+}
+
+bool testThanosSortFinishesAfterSnap() {
+    SortEngine engine;
+    engine.setAlgorithm(THANOS_SORT);
+    engine.setData({10, 9, 8, 7});
+
+    if (!runUntilFinished(engine, 10)) {
+        std::cerr << "Thanos Sort did not finish after snap\n";
+        return false;
+    }
+
+    if (!expectEqual(engine.getData(), {10, 9}, "Thanos Sort final retained half")) {
+        return false;
+    }
+    if (!engine.hasFinished() || engine.isSortingActive() || engine.isFinishingAnimation()) {
+        std::cerr << "Thanos Sort did not settle into final finished state\n";
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 int main() {
@@ -229,6 +298,9 @@ int main() {
     ok = testMergeSortCopyBackIsIncremental() && ok;
     ok = testKWayMergeDoesNotPreSortRunsOnFirstStep() && ok;
     ok = testBogoSortFinishesSortedData() && ok;
+    ok = testStalinSortRemovesOutOfOrderElements() && ok;
+    ok = testThanosSortRemovesSecondHalfImmediately() && ok;
+    ok = testThanosSortFinishesAfterSnap() && ok;
 
     return ok ? 0 : 1;
 }

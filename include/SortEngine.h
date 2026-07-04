@@ -117,6 +117,7 @@ private:
     bool bg_shuffling = false;
     int bg_shuffleIndex = -1;
     std::vector<int> bg_swapTargets;
+    int st_scanIndex = 1;
 
     void clearVisuals();
     void resetAlgorithmState();
@@ -136,6 +137,8 @@ private:
     void stepSleep();
     void prepareBogoShuffle();
     void stepBogo();
+    void stepStalin();
+    void stepThanos();
     void startFinishAnim();
 };
 

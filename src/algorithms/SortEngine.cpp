@@ -64,6 +64,7 @@ void SortEngine::resetAlgorithmState() {
     bg_shuffling = false;
     bg_shuffleIndex = -1;
     bg_swapTargets.clear();
+    st_scanIndex = 1;
 }
 
 void SortEngine::clearVisuals() {
@@ -100,6 +101,8 @@ void SortEngine::step() {
     else if (selectedAlgo == MIRACLE_SORT) stepMiracle();
     else if (selectedAlgo == SLEEP_SORT) stepSleep();
     else if (selectedAlgo == BOGO_SORT) stepBogo();
+    else if (selectedAlgo == STALIN_SORT) stepStalin();
+    else if (selectedAlgo == THANOS_SORT) stepThanos();
 }
 
 void SortEngine::stepBubble() {
@@ -645,6 +648,56 @@ void SortEngine::stepBogo() {
     bg_shuffleIndex = -1;
     visualState.comparisons += std::max(0, arraySize - 1);
     if (std::is_sorted(data.begin(), data.end())) startFinishAnim();
+}
+
+void SortEngine::stepStalin() {
+    if (arraySize <= 1 || st_scanIndex >= arraySize) {
+        startFinishAnim();
+        return;
+    }
+
+    visualState.rangeL = 0;
+    visualState.rangeR = arraySize - 1;
+    visualState.comp1 = st_scanIndex - 1;
+    visualState.comp2 = st_scanIndex;
+    visualState.pivotIdx = st_scanIndex;
+    visualState.comparisons++;
+
+    if (data[st_scanIndex] < data[st_scanIndex - 1]) {
+        data.erase(data.begin() + st_scanIndex);
+        arraySize = static_cast<int>(data.size());
+        visualState.write1 = st_scanIndex;
+        visualState.write2 = -1;
+        visualState.writes++;
+        if (st_scanIndex >= arraySize) {
+            startFinishAnim();
+        }
+        return;
+    }
+
+    st_scanIndex++;
+    if (st_scanIndex >= arraySize) {
+        startFinishAnim();
+    }
+}
+
+void SortEngine::stepThanos() {
+    if (arraySize <= 1) {
+        startFinishAnim();
+        return;
+    }
+
+    const int newSize = arraySize / 2;
+    visualState.rangeL = newSize;
+    visualState.rangeR = arraySize - 1;
+    visualState.write1 = newSize;
+    visualState.write2 = arraySize - 1;
+    visualState.pivotIdx = newSize;
+    visualState.writes += arraySize - newSize;
+
+    data.erase(data.begin() + newSize, data.end());
+    arraySize = static_cast<int>(data.size());
+    startFinishAnim();
 }
 
 void SortEngine::startFinishAnim() {
