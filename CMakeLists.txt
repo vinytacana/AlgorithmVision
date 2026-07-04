@@ -71,33 +71,28 @@ endif()
 
 enable_testing()
 
-add_executable(SortSimulatorTests
-    tests/SortSimulatorTests.cpp
+add_executable(EngineTests
+    tests/EngineTests.cpp
     src/algorithms/DataGenerator.cpp
     src/algorithms/SortEngine.cpp
-    src/algorithms/SortSimulator.cpp
-    src/renderer/Shader.cpp
-    src/renderer/SortRenderer.cpp
 )
 
-target_include_directories(SortSimulatorTests
+target_include_directories(EngineTests
     PRIVATE
         include
 )
 
-target_link_libraries(SortSimulatorTests
+target_link_libraries(EngineTests
     PRIVATE
         glm::glm
-        OpenGL::GL
-        algorithm_vision_glad
 )
 
-add_test(NAME SortSimulatorTests COMMAND SortSimulatorTests)
+add_test(NAME EngineTests COMMAND EngineTests)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
-    target_compile_options(SortSimulatorTests PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(EngineTests PRIVATE -Wall -Wextra -Wpedantic)
 elseif (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
-    target_compile_options(SortSimulatorTests PRIVATE /W4)
+    target_compile_options(EngineTests PRIVATE /W4)
 endif()

@@ -40,6 +40,17 @@ public:
     const SortVisualState& getVisualState() const;
 
 private:
+    enum class QuickPhase {
+        SELECT_RANGE,
+        PARTITION
+    };
+
+    enum class MergePhase {
+        SELECT_RUN,
+        MERGE_VALUES,
+        COPY_BACK
+    };
+
     std::vector<int> data;
     int arraySize = 100;
     SortVisualState visualState;
@@ -56,7 +67,7 @@ private:
     int q_pivot_val = 0;
     int q_i = 0;
     int q_j = 0;
-    bool q_partitioning = false;
+    QuickPhase q_phase = QuickPhase::SELECT_RANGE;
     int m_size = 1;
     int m_l = 0;
     int m_i = 0;
@@ -64,7 +75,8 @@ private:
     int m_mid = 0;
     int m_right = 0;
     std::vector<int> m_temp;
-    bool m_merging = false;
+    MergePhase m_phase = MergePhase::SELECT_RUN;
+    int m_copyIdx = 0;
     int ins_i = 1;
     int ins_j = 0;
     int ins_key = 0;
@@ -85,6 +97,13 @@ private:
     bool hp_sifting = false;
     static constexpr int KW_RUNS = 4;
     bool kw_initialized = false;
+    bool kw_sortingRuns = false;
+    bool kw_mergeSourceReady = false;
+    int kw_sortRunIndex = 0;
+    int kw_sortI = 0;
+    int kw_sortJ = 0;
+    int kw_sortKey = 0;
+    bool kw_sortInserting = false;
     int kw_writeIndex = 0;
     std::vector<int> kw_source;
     std::vector<int> kw_output;
@@ -95,6 +114,10 @@ private:
     int sl_writeIndex = 0;
     std::vector<std::pair<int, int>> sl_events;
     std::mt19937 bogo_rng;
+    bool bg_shuffling = false;
+    int bg_shuffleIndex = -1;
+    std::vector<int> bg_swapTargets;
+    int st_scanIndex = 1;
 
     void clearVisuals();
     void resetAlgorithmState();
@@ -107,11 +130,15 @@ private:
     bool heapSiftDownStep(int heapSize, int& root);
     void stepHeap();
     void initializeKWayMerge();
+    void stepKWayRunSort();
     void stepKWayMerge();
     void stepMiracle();
     void initializeSleep();
     void stepSleep();
+    void prepareBogoShuffle();
     void stepBogo();
+    void stepStalin();
+    void stepThanos();
     void startFinishAnim();
 };
 

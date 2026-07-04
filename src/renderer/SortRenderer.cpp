@@ -26,34 +26,38 @@ void SortRenderer::setupMesh() {
 }
 
 void SortRenderer::render(const SortEngine& engine, Shader& shader, int screenWidth, int screenHeight) {
+    if (screenWidth <= 0 || screenHeight <= 0) return;
+
     shader.use();
-    const glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(screenWidth), 0.0f, static_cast<float>(screenHeight), -1.0f, 1.0f);
+    const float viewportWidth = static_cast<float>(screenWidth);
+    const float viewportHeight = static_cast<float>(screenHeight);
+    const glm::mat4 projection = glm::ortho(0.0f, viewportWidth, 0.0f, viewportHeight, -1.0f, 1.0f);
     shader.setMat4("projection", projection);
 
     glBindVertexArray(vao);
 
     const auto& data = engine.getData();
     const auto& visualState = engine.getVisualState();
-    const float centerX = screenWidth / 2.0f;
-    const float centerY = screenHeight / 2.0f;
-    const float radiusFactor = std::min(screenWidth, screenHeight) * 0.4f;
+    const float centerX = viewportWidth / 2.0f;
+    const float centerY = viewportHeight / 2.0f;
+    const float radiusFactor = std::min(viewportWidth, viewportHeight) * 0.4f;
 
     for (int i = 0; i < static_cast<int>(data.size()); ++i) {
         glm::mat4 model = glm::mat4(1.0f);
 
         if (engine.getRenderMode() == BARS) {
-            const float barWidth = static_cast<float>(screenWidth) / data.size();
-            const float heightScale = static_cast<float>(screenHeight) / data.size();
+            const float barWidth = viewportWidth / static_cast<float>(data.size());
+            const float heightScale = viewportHeight / static_cast<float>(data.size());
             model = glm::translate(model, glm::vec3(i * barWidth, 0.0f, 0.0f));
             model = glm::scale(model, glm::vec3(std::max(1.0f, barWidth - 0.5f), data[i] * heightScale, 1.0f));
         } else if (engine.getRenderMode() == DOTS) {
-            const float dotX = (static_cast<float>(i) / data.size()) * screenWidth;
-            const float dotY = (static_cast<float>(data[i]) / data.size()) * screenHeight;
+            const float dotX = (static_cast<float>(i) / static_cast<float>(data.size())) * viewportWidth;
+            const float dotY = (static_cast<float>(data[i]) / static_cast<float>(data.size())) * viewportHeight;
             model = glm::translate(model, glm::vec3(dotX, dotY, 0.0f));
             model = glm::scale(model, glm::vec3(3.0f, 3.0f, 1.0f));
         } else if (engine.getRenderMode() == CIRCULAR) {
-            const float angle = (static_cast<float>(i) / data.size()) * 2.0f * static_cast<float>(M_PI);
-            const float radius = (static_cast<float>(data[i]) / data.size()) * radiusFactor;
+            const float angle = (static_cast<float>(i) / static_cast<float>(data.size())) * 2.0f * static_cast<float>(M_PI);
+            const float radius = (static_cast<float>(data[i]) / static_cast<float>(data.size())) * radiusFactor;
             model = glm::translate(model, glm::vec3(centerX, centerY, 0.0f));
             model = glm::rotate(model, angle, glm::vec3(0, 0, 1));
             model = glm::scale(model, glm::vec3(2.0f, radius, 1.0f));

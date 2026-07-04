@@ -3,6 +3,7 @@
 #include "DataGenerator.h"
 
 #include <algorithm>
+#include <numeric>
 #include <stdexcept>
 
 SortEngine::SortEngine() : bogo_rng(std::random_device{}()) {
@@ -20,10 +21,11 @@ void SortEngine::resetAlgorithmState() {
     b_j = 0;
     while (!q_stack.empty()) q_stack.pop();
     q_stack.push({0, arraySize - 1});
-    q_partitioning = false;
+    q_phase = QuickPhase::SELECT_RANGE;
     m_size = 1;
     m_l = 0;
-    m_merging = false;
+    m_phase = MergePhase::SELECT_RUN;
+    m_copyIdx = 0;
     ins_i = 1;
     ins_j = 0;
     ins_key = 0;
@@ -43,6 +45,13 @@ void SortEngine::resetAlgorithmState() {
     hp_siftRoot = 0;
     hp_sifting = false;
     kw_initialized = false;
+    kw_sortingRuns = false;
+    kw_mergeSourceReady = false;
+    kw_sortRunIndex = 0;
+    kw_sortI = 0;
+    kw_sortJ = 0;
+    kw_sortKey = 0;
+    kw_sortInserting = false;
     kw_writeIndex = 0;
     kw_source.clear();
     kw_output.clear();
@@ -52,6 +61,10 @@ void SortEngine::resetAlgorithmState() {
     sl_initialized = false;
     sl_writeIndex = 0;
     sl_events.clear();
+    bg_shuffling = false;
+    bg_shuffleIndex = -1;
+    bg_swapTargets.clear();
+    st_scanIndex = 1;
 }
 
 void SortEngine::clearVisuals() {
@@ -88,6 +101,8 @@ void SortEngine::step() {
     else if (selectedAlgo == MIRACLE_SORT) stepMiracle();
     else if (selectedAlgo == SLEEP_SORT) stepSleep();
     else if (selectedAlgo == BOGO_SORT) stepBogo();
+    else if (selectedAlgo == STALIN_SORT) stepStalin();
+    else if (selectedAlgo == THANOS_SORT) stepThanos();
 }
 
 void SortEngine::stepBubble() {
@@ -113,99 +128,116 @@ void SortEngine::stepBubble() {
 }
 
 void SortEngine::stepQuick() {
-    if (!q_partitioning) {
+    if (q_phase == QuickPhase::SELECT_RANGE) {
         if (q_stack.empty()) {
             startFinishAnim();
             return;
         }
-        auto range = q_stack.top();
+        const auto range = q_stack.top();
         q_stack.pop();
         q_low = range.first;
         q_high = range.second;
-        if (q_low < q_high) {
-            q_pivot_val = data[q_high];
-            visualState.pivotIdx = q_high;
-            q_i = q_low - 1;
-            q_j = q_low;
-            q_partitioning = true;
-            visualState.rangeL = q_low;
-            visualState.rangeR = q_high;
-        } else {
-            stepQuick();
+        if (q_low >= q_high) {
+            return;
         }
-    } else {
+
+        q_pivot_val = data[q_high];
         visualState.pivotIdx = q_high;
+        q_i = q_low - 1;
+        q_j = q_low;
+        q_phase = QuickPhase::PARTITION;
         visualState.rangeL = q_low;
         visualState.rangeR = q_high;
-        if (q_j < q_high) {
-            visualState.comp1 = q_j;
-            visualState.comp2 = q_high;
-            visualState.comparisons++;
-            if (data[q_j] < q_pivot_val) {
-                q_i++;
-                std::swap(data[q_i], data[q_j]);
-                visualState.write1 = q_i;
-                visualState.write2 = q_j;
-                visualState.writes++;
-            }
-            q_j++;
-        } else {
-            std::swap(data[q_i + 1], data[q_high]);
-            visualState.write1 = q_i + 1;
-            visualState.write2 = q_high;
-            visualState.writes++;
-            const int p = q_i + 1;
-            q_stack.push({p + 1, q_high});
-            q_stack.push({q_low, p - 1});
-            q_partitioning = false;
-        }
+        return;
     }
+
+    visualState.pivotIdx = q_high;
+    visualState.rangeL = q_low;
+    visualState.rangeR = q_high;
+    if (q_j < q_high) {
+        visualState.comp1 = q_j;
+        visualState.comp2 = q_high;
+        visualState.comparisons++;
+        if (data[q_j] < q_pivot_val) {
+            q_i++;
+            std::swap(data[q_i], data[q_j]);
+            visualState.write1 = q_i;
+            visualState.write2 = q_j;
+            visualState.writes++;
+        }
+        q_j++;
+        return;
+    }
+
+    std::swap(data[q_i + 1], data[q_high]);
+    visualState.write1 = q_i + 1;
+    visualState.write2 = q_high;
+    visualState.writes++;
+    const int p = q_i + 1;
+    q_stack.push({p + 1, q_high});
+    q_stack.push({q_low, p - 1});
+    q_phase = QuickPhase::SELECT_RANGE;
 }
 
 void SortEngine::stepMerge() {
-    if (!m_merging) {
-        if (m_size < arraySize) {
-            if (m_l < arraySize - 1) {
-                m_mid = std::min(m_l + m_size - 1, arraySize - 1);
-                m_right = std::min(m_l + 2 * m_size - 1, arraySize - 1);
-                m_temp.clear();
-                m_i = m_l;
-                m_j = m_mid + 1;
-                m_merging = true;
-                visualState.rangeL = m_l;
-                visualState.rangeR = m_right;
-            } else {
-                m_l = 0;
-                m_size *= 2;
-                stepMerge();
-            }
-        } else {
+    if (m_phase == MergePhase::SELECT_RUN) {
+        if (m_size >= arraySize) {
             startFinishAnim();
-        }
-    } else {
-        visualState.rangeL = m_l;
-        visualState.rangeR = m_right;
-        if (m_i <= m_mid && m_j <= m_right) {
-            visualState.comp1 = m_i;
-            visualState.comp2 = m_j;
-            visualState.comparisons++;
-            if (data[m_i] <= data[m_j]) m_temp.push_back(data[m_i++]);
-            else m_temp.push_back(data[m_j++]);
-        } else if (m_i <= m_mid) {
-            m_temp.push_back(data[m_i++]);
-        } else if (m_j <= m_right) {
-            m_temp.push_back(data[m_j++]);
-        } else {
-            for (int idx = 0; idx < static_cast<int>(m_temp.size()); idx++) data[m_l + idx] = m_temp[idx];
-            visualState.writes += static_cast<long long>(m_temp.size());
-            m_l += 2 * m_size;
-            m_merging = false;
-            visualState.write1 = m_l - 2 * m_size;
-            visualState.write2 = m_right;
             return;
         }
-        visualState.write1 = m_l + static_cast<int>(m_temp.size()) - 1;
+
+        if (m_l >= arraySize - 1) {
+            m_l = 0;
+            m_size *= 2;
+            return;
+        }
+
+        m_mid = std::min(m_l + m_size - 1, arraySize - 1);
+        m_right = std::min(m_l + 2 * m_size - 1, arraySize - 1);
+        m_temp.clear();
+        m_i = m_l;
+        m_j = m_mid + 1;
+        m_copyIdx = 0;
+        m_phase = MergePhase::MERGE_VALUES;
+        visualState.rangeL = m_l;
+        visualState.rangeR = m_right;
+        return;
     }
+
+    visualState.rangeL = m_l;
+    visualState.rangeR = m_right;
+    if (m_phase == MergePhase::COPY_BACK) {
+        data[m_l + m_copyIdx] = m_temp[m_copyIdx];
+        visualState.write1 = m_l + m_copyIdx;
+        visualState.write2 = -1;
+        visualState.pivotIdx = m_l + m_copyIdx;
+        visualState.writes++;
+        m_copyIdx++;
+        if (m_copyIdx >= static_cast<int>(m_temp.size())) {
+            m_l += 2 * m_size;
+            m_phase = MergePhase::SELECT_RUN;
+            m_copyIdx = 0;
+        }
+        return;
+    }
+
+    if (m_i <= m_mid && m_j <= m_right) {
+        visualState.comp1 = m_i;
+        visualState.comp2 = m_j;
+        visualState.comparisons++;
+        if (data[m_i] <= data[m_j]) m_temp.push_back(data[m_i++]);
+        else m_temp.push_back(data[m_j++]);
+    } else if (m_i <= m_mid) {
+        m_temp.push_back(data[m_i++]);
+    } else if (m_j <= m_right) {
+        m_temp.push_back(data[m_j++]);
+    } else {
+        m_phase = MergePhase::COPY_BACK;
+        m_copyIdx = 0;
+        return;
+    }
+    visualState.write1 = m_l + static_cast<int>(m_temp.size()) - 1;
+    visualState.write2 = -1;
 }
 
 void SortEngine::stepInsertion() {
@@ -406,6 +438,10 @@ void SortEngine::stepHeap() {
 
 void SortEngine::initializeKWayMerge() {
     kw_initialized = true;
+    kw_sortingRuns = true;
+    kw_mergeSourceReady = false;
+    kw_sortRunIndex = 0;
+    kw_sortInserting = false;
     kw_writeIndex = 0;
     kw_output.clear();
     kw_output.reserve(data.size());
@@ -417,21 +453,84 @@ void SortEngine::initializeKWayMerge() {
     for (int run = 0; run < runs; ++run) {
         const int start = run * arraySize / runs;
         const int end = (run + 1) * arraySize / runs;
-        std::sort(data.begin() + start, data.begin() + end);
         kw_runStart.push_back(start);
         kw_runEnd.push_back(end);
         kw_runCursor.push_back(start);
-        visualState.writes += end - start;
     }
-    kw_source = data;
-    visualState.rangeL = 0;
-    visualState.rangeR = arraySize - 1;
+}
+
+void SortEngine::stepKWayRunSort() {
+    if (kw_sortRunIndex >= static_cast<int>(kw_runStart.size())) {
+        kw_sortingRuns = false;
+        kw_mergeSourceReady = false;
+        return;
+    }
+
+    const int runStart = kw_runStart[kw_sortRunIndex];
+    const int runEnd = kw_runEnd[kw_sortRunIndex];
+    visualState.rangeL = runStart;
+    visualState.rangeR = runEnd - 1;
+
+    if (runEnd - runStart <= 1) {
+        kw_sortRunIndex++;
+        kw_sortInserting = false;
+        return;
+    }
+
+    if (!kw_sortInserting) {
+        if (kw_sortI < runStart + 1) kw_sortI = runStart + 1;
+        if (kw_sortI >= runEnd) {
+            kw_sortRunIndex++;
+            kw_sortI = 0;
+            kw_sortJ = 0;
+            kw_sortInserting = false;
+            return;
+        }
+
+        kw_sortKey = data[kw_sortI];
+        kw_sortJ = kw_sortI - 1;
+        kw_sortInserting = true;
+        visualState.pivotIdx = kw_sortI;
+    }
+
+    visualState.pivotIdx = kw_sortI;
+    if (kw_sortJ >= runStart) {
+        visualState.comp1 = kw_sortJ;
+        visualState.comp2 = kw_sortJ + 1;
+        visualState.comparisons++;
+        if (data[kw_sortJ] > kw_sortKey) {
+            data[kw_sortJ + 1] = data[kw_sortJ];
+            visualState.write1 = kw_sortJ;
+            visualState.write2 = kw_sortJ + 1;
+            visualState.writes++;
+            kw_sortJ--;
+            return;
+        }
+    }
+
+    data[kw_sortJ + 1] = kw_sortKey;
+    visualState.write1 = kw_sortJ + 1;
+    visualState.write2 = -1;
+    visualState.writes++;
+    kw_sortI++;
+    kw_sortInserting = false;
 }
 
 void SortEngine::stepKWayMerge() {
     if (!kw_initialized) {
         initializeKWayMerge();
         return;
+    }
+    if (kw_sortingRuns) {
+        stepKWayRunSort();
+        return;
+    }
+    if (!kw_mergeSourceReady) {
+        kw_source = data;
+        for (int run = 0; run < static_cast<int>(kw_runCursor.size()); ++run) {
+            kw_runCursor[run] = kw_runStart[run];
+        }
+        kw_mergeSourceReady = true;
     }
     if (kw_writeIndex >= arraySize) {
         startFinishAnim();
@@ -511,21 +610,94 @@ void SortEngine::stepSleep() {
     sl_writeIndex++;
 }
 
+void SortEngine::prepareBogoShuffle() {
+    bg_swapTargets.resize(arraySize);
+    std::iota(bg_swapTargets.begin(), bg_swapTargets.end(), 0);
+    for (int i = arraySize - 1; i > 0; --i) {
+        std::uniform_int_distribution<int> dist(0, i);
+        bg_swapTargets[i] = dist(bogo_rng);
+    }
+    bg_shuffleIndex = arraySize - 1;
+    bg_shuffling = true;
+}
+
 void SortEngine::stepBogo() {
     if (std::is_sorted(data.begin(), data.end())) {
         startFinishAnim();
         return;
     }
 
-    std::shuffle(data.begin(), data.end(), bogo_rng);
-    visualState.comparisons += std::max(0, arraySize - 1);
-    visualState.writes += arraySize;
     visualState.rangeL = 0;
     visualState.rangeR = arraySize - 1;
-    visualState.write1 = 0;
-    visualState.write2 = arraySize - 1;
+    if (!bg_shuffling) {
+        prepareBogoShuffle();
+    }
 
+    if (bg_shuffleIndex > 0) {
+        const int swapTarget = bg_swapTargets[bg_shuffleIndex];
+        std::swap(data[bg_shuffleIndex], data[swapTarget]);
+        visualState.write1 = bg_shuffleIndex;
+        visualState.write2 = swapTarget;
+        visualState.pivotIdx = bg_shuffleIndex;
+        visualState.writes++;
+        bg_shuffleIndex--;
+        return;
+    }
+
+    bg_shuffling = false;
+    bg_shuffleIndex = -1;
+    visualState.comparisons += std::max(0, arraySize - 1);
     if (std::is_sorted(data.begin(), data.end())) startFinishAnim();
+}
+
+void SortEngine::stepStalin() {
+    if (arraySize <= 1 || st_scanIndex >= arraySize) {
+        startFinishAnim();
+        return;
+    }
+
+    visualState.rangeL = 0;
+    visualState.rangeR = arraySize - 1;
+    visualState.comp1 = st_scanIndex - 1;
+    visualState.comp2 = st_scanIndex;
+    visualState.pivotIdx = st_scanIndex;
+    visualState.comparisons++;
+
+    if (data[st_scanIndex] < data[st_scanIndex - 1]) {
+        data.erase(data.begin() + st_scanIndex);
+        arraySize = static_cast<int>(data.size());
+        visualState.write1 = st_scanIndex;
+        visualState.write2 = -1;
+        visualState.writes++;
+        if (st_scanIndex >= arraySize) {
+            startFinishAnim();
+        }
+        return;
+    }
+
+    st_scanIndex++;
+    if (st_scanIndex >= arraySize) {
+        startFinishAnim();
+    }
+}
+
+void SortEngine::stepThanos() {
+    if (arraySize <= 1) {
+        startFinishAnim();
+        return;
+    }
+
+    const int newSize = arraySize / 2;
+    visualState.rangeL = newSize;
+    visualState.rangeR = arraySize - 1;
+    visualState.write1 = newSize;
+    visualState.write2 = arraySize - 1;
+    visualState.pivotIdx = newSize;
+    visualState.writes += arraySize - newSize;
+
+    data.erase(data.begin() + newSize, data.end());
+    arraySize = static_cast<int>(data.size());
+    startFinishAnim();
 }
 
 void SortEngine::startFinishAnim() {
