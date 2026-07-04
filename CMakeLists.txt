@@ -23,7 +23,10 @@ set(IMGUI_SOURCES
 
 set(SOURCES
     src/main.cpp
+    src/algorithms/DataGenerator.cpp
+    src/algorithms/SortEngine.cpp
     src/renderer/Shader.cpp
+    src/renderer/SortRenderer.cpp
     src/algorithms/SortSimulator.cpp
     src/ui/UIComponents.cpp
     ${IMGUI_SOURCES}
@@ -65,8 +68,11 @@ enable_testing()
 
 add_executable(SortSimulatorTests
     tests/SortSimulatorTests.cpp
+    src/algorithms/DataGenerator.cpp
+    src/algorithms/SortEngine.cpp
     src/algorithms/SortSimulator.cpp
     src/renderer/Shader.cpp
+    src/renderer/SortRenderer.cpp
 )
 
 target_include_directories(SortSimulatorTests
