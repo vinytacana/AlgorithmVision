@@ -48,10 +48,15 @@ target_link_libraries(${PROJECT_NAME}
         ${CMAKE_DL_LIBS}
 )
 
+set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
+set(SHADER_OUTPUT_DIR "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders")
+
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUTPUT_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders"
+            "${SHADER_SOURCE_DIR}"
+            "${SHADER_OUTPUT_DIR}"
+    COMMENT "Copying shader assets to runtime directory"
     VERBATIM
 )
 
