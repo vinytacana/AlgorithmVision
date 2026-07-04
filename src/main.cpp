@@ -1,6 +1,7 @@
 #include "GLLoader.h"
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include "AlgorithmRegistry.h"
 #include "Shader.h"
 #include "SortSimulator.h"
 #include "UIComponents.h"
@@ -8,8 +9,6 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <iostream>
-#include <cstdio>
-#include <string>
 
 int main() {
     if (!glfwInit()) {
@@ -75,21 +74,18 @@ int main() {
             ImGui::TextDisabled("Fluxo: escolha o algoritmo, ajuste os dados e controle a animacao.");
             ImGui::SeparatorText("Algoritmo e Dados");
 
-            const char* algos[] = {
-                "Bubble Sort",
-                "Quick Sort",
-                "Merge Sort",
-                "Insertion Sort",
-                "Selection Sort",
-                "Shell Sort",
-                "Heap Sort",
-                "K-Way Merge Sort",
-                "Miracle Sort",
-                "Sleepsort",
-                "Bogosort"
-            };
             int curAlgo = static_cast<int>(sortSim.getAlgorithm());
-            if (ImGui::Combo("Algoritmo", &curAlgo, algos, static_cast<int>(sizeof(algos) / sizeof(algos[0])))) sortSim.setAlgorithm(static_cast<Algorithm>(curAlgo));
+            if (ImGui::Combo(
+                    "Algoritmo",
+                    &curAlgo,
+                    [](void*, int idx, const char** outText) {
+                        *outText = AlgorithmRegistry::getMetadataByIndex(idx).name;
+                        return true;
+                    },
+                    nullptr,
+                    AlgorithmRegistry::count())) {
+                sortSim.setAlgorithm(static_cast<Algorithm>(curAlgo));
+            }
 
             const char* dists[] = { "Aleatório", "Reverso", "Quase Ordenado", "Poucos Únicos" };
             int curDist = static_cast<int>(sortSim.getDistribution());
@@ -113,7 +109,7 @@ int main() {
             ImGui::End();
 
             ImGui::Begin("Informação Pedagógica", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
-            ImGui::TextWrapped("%s", getAlgorithmDescription(static_cast<int>(sortSim.getAlgorithm())));
+            ImGui::TextWrapped("%s", getAlgorithmDescription(sortSim.getAlgorithm()));
             ImGui::Text("Comparações: %lld", sortSim.getComparisons());
             ImGui::Text("Acessos: %lld", sortSim.getWrites());
             ImGui::End();

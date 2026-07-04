@@ -1,4 +1,5 @@
 #include "SortSimulator.h"
+#include "AlgorithmRegistry.h"
 
 #include <algorithm>
 #include <array>
@@ -31,21 +32,7 @@ const std::array<Algorithm, 9> kDeterministicAlgorithms = {
 };
 
 std::string algorithmName(Algorithm algorithm) {
-    switch (algorithm) {
-        case BUBBLE_SORT: return "Bubble Sort";
-        case QUICK_SORT: return "Quick Sort";
-        case MERGE_SORT: return "Merge Sort";
-        case INSERTION_SORT: return "Insertion Sort";
-        case SELECTION_SORT: return "Selection Sort";
-        case SHELL_SORT: return "Shell Sort";
-        case HEAP_SORT: return "Heap Sort";
-        case K_WAY_MERGE_SORT: return "K-Way Merge Sort";
-        case MIRACLE_SORT: return "Miracle Sort";
-        case SLEEP_SORT: return "Sleepsort";
-        case BOGO_SORT: return "Bogosort";
-        case ALGORITHM_COUNT: break;
-    }
-    return "Unknown";
+    return AlgorithmRegistry::getMetadata(algorithm).name;
 }
 
 bool expectEqual(const std::vector<int>& actual, const std::vector<int>& expected, const std::string& context) {
