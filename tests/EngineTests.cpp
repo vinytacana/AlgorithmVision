@@ -1,5 +1,5 @@
-#include "SortSimulator.h"
 #include "AlgorithmRegistry.h"
+#include "SortEngine.h"
 
 #include <algorithm>
 #include <array>
@@ -10,11 +10,11 @@
 
 namespace {
 
-bool runUntilFinished(SortSimulator& simulator, int maxSteps = 20000) {
-    simulator.toggleSorting();
+bool runUntilFinished(SortEngine& engine, int maxSteps = 20000) {
+    engine.toggleSorting();
     for (int step = 0; step < maxSteps; ++step) {
-        simulator.step();
-        if (simulator.hasFinished()) return true;
+        engine.step();
+        if (engine.hasFinished()) return true;
     }
     return false;
 }
@@ -48,18 +48,18 @@ bool expectEqual(const std::vector<int>& actual, const std::vector<int>& expecte
 }
 
 bool testAlgorithmWithInput(Algorithm algorithm, const std::vector<int>& input) {
-    SortSimulator simulator(false);
-    simulator.setAlgorithm(algorithm);
-    simulator.setData(input);
+    SortEngine engine;
+    engine.setAlgorithm(algorithm);
+    engine.setData(input);
 
-    if (!runUntilFinished(simulator)) {
+    if (!runUntilFinished(engine)) {
         std::cerr << "Sort did not finish for " << algorithmName(algorithm) << '\n';
         return false;
     }
 
     std::vector<int> expected = input;
     std::sort(expected.begin(), expected.end());
-    return expectEqual(simulator.getData(), expected, algorithmName(algorithm));
+    return expectEqual(engine.getData(), expected, algorithmName(algorithm));
 }
 
 bool testAllAlgorithmsHandleInput(const std::vector<int>& input, const std::string& label) {
@@ -72,21 +72,21 @@ bool testAllAlgorithmsHandleInput(const std::vector<int>& input, const std::stri
 }
 
 bool testAlgorithmSwitchResetsState() {
-    SortSimulator simulator(false);
-    simulator.setData({3, 2, 1});
-    simulator.toggleSorting();
-    simulator.step();
-    simulator.setAlgorithm(MERGE_SORT);
+    SortEngine engine;
+    engine.setData({3, 2, 1});
+    engine.toggleSorting();
+    engine.step();
+    engine.setAlgorithm(MERGE_SORT);
 
-    if (simulator.isSortingActive() || simulator.hasFinished() || simulator.isFinishingAnimation()) {
-        std::cerr << "Algorithm switch did not reset simulator state\n";
+    if (engine.isSortingActive() || engine.hasFinished() || engine.isFinishingAnimation()) {
+        std::cerr << "Algorithm switch did not reset engine state\n";
         return false;
     }
-    if (simulator.getAlgorithm() != MERGE_SORT) {
+    if (engine.getAlgorithm() != MERGE_SORT) {
         std::cerr << "Algorithm switch did not update selected algorithm\n";
         return false;
     }
-    if (simulator.getArraySize() != 3 || simulator.getData().size() != 3) {
+    if (engine.getArraySize() != 3 || engine.getData().size() != 3) {
         std::cerr << "Algorithm switch changed the configured array size unexpectedly\n";
         return false;
     }
@@ -95,47 +95,47 @@ bool testAlgorithmSwitchResetsState() {
 }
 
 bool testResetPreservesConfiguration() {
-    SortSimulator simulator(false);
-    simulator.setArraySize(12);
-    simulator.setDistribution(REVERSED);
-    simulator.reset();
+    SortEngine engine;
+    engine.setArraySize(12);
+    engine.setDistribution(REVERSED);
+    engine.reset();
 
-    if (simulator.getArraySize() != 12) {
+    if (engine.getArraySize() != 12) {
         std::cerr << "Reset did not preserve array size\n";
         return false;
     }
-    if (simulator.isSortingActive() || simulator.hasFinished() || simulator.isFinishingAnimation()) {
-        std::cerr << "Reset left simulator in an active or finished state\n";
+    if (engine.isSortingActive() || engine.hasFinished() || engine.isFinishingAnimation()) {
+        std::cerr << "Reset left engine in an active or finished state\n";
         return false;
     }
 
     const std::vector<int> expected = {12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1};
-    return expectEqual(simulator.getData(), expected, "reversed reset data");
+    return expectEqual(engine.getData(), expected, "reversed reset data");
 }
 
 bool testDistributionSwitchResetsData() {
-    SortSimulator simulator(false);
-    simulator.setArraySize(6);
-    simulator.setData({3, 1, 2, 6, 5, 4});
-    simulator.setDistribution(REVERSED);
+    SortEngine engine;
+    engine.setArraySize(6);
+    engine.setData({3, 1, 2, 6, 5, 4});
+    engine.setDistribution(REVERSED);
 
-    if (simulator.getDistribution() != REVERSED) {
+    if (engine.getDistribution() != REVERSED) {
         std::cerr << "Distribution switch did not update selected distribution\n";
         return false;
     }
-    if (simulator.isSortingActive() || simulator.hasFinished() || simulator.isFinishingAnimation()) {
-        std::cerr << "Distribution switch left simulator in an active or finished state\n";
+    if (engine.isSortingActive() || engine.hasFinished() || engine.isFinishingAnimation()) {
+        std::cerr << "Distribution switch left engine in an active or finished state\n";
         return false;
     }
 
     const std::vector<int> expected = {6, 5, 4, 3, 2, 1};
-    return expectEqual(simulator.getData(), expected, "distribution switch data");
+    return expectEqual(engine.getData(), expected, "distribution switch data");
 }
 
 bool testSetArraySizeRejectsInvalidValues() {
-    SortSimulator simulator(false);
+    SortEngine engine;
     try {
-        simulator.setArraySize(0);
+        engine.setArraySize(0);
     } catch (const std::invalid_argument&) {
         return true;
     }
@@ -144,9 +144,9 @@ bool testSetArraySizeRejectsInvalidValues() {
 }
 
 bool testRejectsEmptyData() {
-    SortSimulator simulator(false);
+    SortEngine engine;
     try {
-        simulator.setData({});
+        engine.setData({});
     } catch (const std::invalid_argument&) {
         return true;
     }
@@ -155,35 +155,55 @@ bool testRejectsEmptyData() {
 }
 
 bool testMiracleSortWaitsForUnsortedData() {
-    SortSimulator simulator(false);
-    simulator.setAlgorithm(MIRACLE_SORT);
-    simulator.setData({2, 1});
-    simulator.toggleSorting();
-    for (int i = 0; i < 10; ++i) simulator.step();
+    SortEngine engine;
+    engine.setAlgorithm(MIRACLE_SORT);
+    engine.setData({2, 1});
+    engine.toggleSorting();
+    for (int i = 0; i < 10; ++i) engine.step();
 
-    if (simulator.hasFinished()) {
+    if (engine.hasFinished()) {
         std::cerr << "Miracle Sort finished unsorted data without a miracle\n";
         return false;
     }
-    return expectEqual(simulator.getData(), {2, 1}, "Miracle Sort waiting data");
+    return expectEqual(engine.getData(), {2, 1}, "Miracle Sort waiting data");
 }
 
 bool testMiracleSortFinishesSortedData() {
-    SortSimulator simulator(false);
-    simulator.setAlgorithm(MIRACLE_SORT);
-    simulator.setData({1, 2, 3});
-    if (!runUntilFinished(simulator, 10)) {
+    SortEngine engine;
+    engine.setAlgorithm(MIRACLE_SORT);
+    engine.setData({1, 2, 3});
+    if (!runUntilFinished(engine, 10)) {
         std::cerr << "Miracle Sort did not finish already sorted data\n";
         return false;
     }
     return true;
 }
 
+bool testMergeSortCopyBackIsIncremental() {
+    SortEngine engine;
+    engine.setAlgorithm(MERGE_SORT);
+    engine.setData({2, 1});
+    engine.toggleSorting();
+    for (int i = 0; i < 4; ++i) engine.step();
+
+    return expectEqual(engine.getData(), {2, 1}, "Merge Sort incremental copy-back");
+}
+
+bool testKWayMergeDoesNotPreSortRunsOnFirstStep() {
+    SortEngine engine;
+    engine.setAlgorithm(K_WAY_MERGE_SORT);
+    engine.setData({2, 1, 4, 3, 6, 5, 8, 7});
+    engine.toggleSorting();
+    engine.step();
+
+    return expectEqual(engine.getData(), {2, 1, 4, 3, 6, 5, 8, 7}, "K-Way Merge first step preserves unsorted runs");
+}
+
 bool testBogoSortFinishesSortedData() {
-    SortSimulator simulator(false);
-    simulator.setAlgorithm(BOGO_SORT);
-    simulator.setData({1, 2, 3});
-    if (!runUntilFinished(simulator, 10)) {
+    SortEngine engine;
+    engine.setAlgorithm(BOGO_SORT);
+    engine.setData({1, 2, 3});
+    if (!runUntilFinished(engine, 10)) {
         std::cerr << "Bogosort did not finish already sorted data\n";
         return false;
     }
@@ -206,6 +226,8 @@ int main() {
     ok = testRejectsEmptyData() && ok;
     ok = testMiracleSortWaitsForUnsortedData() && ok;
     ok = testMiracleSortFinishesSortedData() && ok;
+    ok = testMergeSortCopyBackIsIncremental() && ok;
+    ok = testKWayMergeDoesNotPreSortRunsOnFirstStep() && ok;
     ok = testBogoSortFinishesSortedData() && ok;
 
     return ok ? 0 : 1;
