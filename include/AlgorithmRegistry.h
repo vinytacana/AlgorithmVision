@@ -17,6 +17,8 @@ enum Algorithm {
     MIRACLE_SORT,
     SLEEP_SORT,
     BOGO_SORT,
+    STALIN_SORT,
+    THANOS_SORT,
     ALGORITHM_COUNT
 };
 
@@ -39,7 +41,9 @@ inline constexpr std::array<AlgorithmMetadata, static_cast<std::size_t>(ALGORITH
     {K_WAY_MERGE_SORT, "K-Way Merge Sort", "K-Way Merge Sort: Divide os dados em varios blocos ordenados e mescla todos escolhendo o menor candidato entre os blocos. Complexidade: O(n log k) durante a mesclagem."},
     {MIRACLE_SORT, "Miracle Sort", "Miracle Sort: Nao altera os dados. Ele apenas espera que os elementos ja estejam ordenados por um milagre espontaneo."},
     {SLEEP_SORT, "Sleepsort", "Sleepsort: Simula timers proporcionais aos valores; os menores acordam primeiro e sao escritos antes."},
-    {BOGO_SORT, "Bogosort", "Bogosort: Embaralha tudo aleatoriamente e verifica se ficou ordenado. Repete ate a sorte resolver."}
+    {BOGO_SORT, "Bogosort", "Bogosort: Embaralha tudo aleatoriamente e verifica se ficou ordenado. Repete ate a sorte resolver."},
+    {STALIN_SORT, "Stalin Sort", "Stalin Sort: Remove qualquer elemento que nao esteja na ordem correta durante uma unica varredura. O que sobra e tecnicamente ordenado."},
+    {THANOS_SORT, "Thanos Sort", "Thanos Sort: Exclui metade dos elementos aleatoriamente em um unico passo. O resultado pode ou nao estar ordenado."}
 }};
 
 inline const AlgorithmMetadata& getMetadata(Algorithm algorithm) {

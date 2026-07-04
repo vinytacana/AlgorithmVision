@@ -10,6 +10,14 @@
 #include "imgui_impl_opengl3.h"
 #include <iostream>
 
+namespace {
+
+void framebufferSizeCallback(GLFWwindow*, int width, int height) {
+    glViewport(0, 0, width, height);
+}
+
+} // namespace
+
 int main() {
     if (!glfwInit()) {
         std::cerr << "ERRO::GLFW::INICIALIZACAO_FALHOU" << std::endl;
@@ -30,6 +38,7 @@ int main() {
     }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
+    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
     const int gladVersion = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     if (gladVersion == 0) {
@@ -38,6 +47,11 @@ int main() {
         glfwTerminate();
         return -1;
     }
+
+    int framebufferWidth = 0;
+    int framebufferHeight = 0;
+    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+    glViewport(0, 0, framebufferWidth, framebufferHeight);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -57,12 +71,7 @@ int main() {
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
 
-            int framebufferWidth = 0;
-            int framebufferHeight = 0;
-            int windowWidth = 0;
-            int windowHeight = 0;
             glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
-            glfwGetWindowSize(window, &windowWidth, &windowHeight);
 
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
