@@ -3,10 +3,9 @@
 # Compilacao manual do AlgorithmVision com g++ (sem CMake), para Git Bash.
 #
 # Uso:
-#   ./compilar.sh            # compila tudo (testes + app + JNI)
+#   ./compilar.sh            # compila tudo (testes + biblioteca JNI)
 #   ./compilar.sh tests      # so os testes headless (nao precisa de OpenGL)
-#   ./compilar.sh app        # so o executavel standalone (ImGui)
-#   ./compilar.sh jni        # so as classes Java + motor.dll
+#   ./compilar.sh jni        # classes Java + motor.dll
 #   ./compilar.sh clean      # remove os artefatos gerados por este script
 #
 # Pre-requisitos:
@@ -31,7 +30,7 @@ if [[ -z "${JDK:-}" ]]; then
     fi
 fi
 
-# --- Fontes compartilhados entre o app e a DLL -------------------------------
+# --- Fontes da biblioteca nativa ---------------------------------------------
 CORE_SOURCES=(
     src/algorithms/DataGenerator.cpp
     src/algorithms/SortEngine.cpp
@@ -40,14 +39,10 @@ CORE_SOURCES=(
     src/renderer/SortRenderer.cpp
 )
 
-IMGUI_SOURCES=(
-    src/ui/UIComponents.cpp
-    src/ui/imgui/imgui.cpp
-    src/ui/imgui/imgui_draw.cpp
-    src/ui/imgui/imgui_widgets.cpp
-    src/ui/imgui/imgui_tables.cpp
-    src/ui/imgui/imgui_impl_glfw.cpp
-    src/ui/imgui/imgui_impl_opengl3.cpp
+JAVA_SOURCES=(
+    java/main/*.java
+    java/main/controle/*.java
+    java/main/ui/*.java
 )
 
 CXXFLAGS=(-std=c++17 -O2 -Wall -Wextra)
@@ -73,23 +68,10 @@ build_tests() {
     ./EngineTests.exe && echo ">> TESTES PASSARAM"
 }
 
-build_app() {
-    build_glad
-    echo ">> Compilando AlgorithmVision.exe (standalone ImGui)..."
-    g++ "${CXXFLAGS[@]}" "${INCLUDES[@]}" -Iinclude/imgui \
-        src/main.cpp \
-        "${CORE_SOURCES[@]}" \
-        "${IMGUI_SOURCES[@]}" \
-        glad.o \
-        "${LIBS[@]}" \
-        -o AlgorithmVision.exe
-    echo ">> OK: ./AlgorithmVision.exe (execute a partir da raiz, onde esta shaders/)"
-}
-
 build_jni() {
     build_glad
     echo ">> Compilando classes Java e gerando header JNI..."
-    javac -encoding UTF-8 -h headers -d java/build java/main/*.java
+    javac -encoding UTF-8 -h headers -d java/build "${JAVA_SOURCES[@]}"
 
     echo ">> Compilando motor.dll (biblioteca nativa JNI)..."
     # -shared: gera DLL; -static: embute o runtime do MinGW (libstdc++/libgcc/
@@ -103,20 +85,20 @@ build_jni() {
         -o motor.dll
     echo ">> OK. Para executar (CWD precisa ter shaders/ e motor.dll):"
     echo "   java -Djava.library.path=. -cp java/build main.Main"
+    echo "   java -Djava.library.path=. -cp java/build main.TesteIntegracao"
 }
 
 clean() {
     echo ">> Limpando artefatos do build manual..."
-    rm -f glad.o EngineTests.exe AlgorithmVision.exe motor.dll
+    rm -f glad.o EngineTests.exe motor.dll
     rm -rf java/build
     echo ">> OK"
 }
 
 case "${1:-all}" in
     tests) build_tests ;;
-    app)   build_app ;;
     jni)   build_jni ;;
     clean) clean ;;
-    all)   build_tests; build_app; build_jni ;;
-    *)     echo "Uso: $0 [tests|app|jni|clean|all]"; exit 1 ;;
+    all)   build_tests; build_jni ;;
+    *)     echo "Uso: $0 [tests|jni|clean|all]"; exit 1 ;;
 esac
