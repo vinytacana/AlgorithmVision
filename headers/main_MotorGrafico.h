@@ -10,9 +10,9 @@ extern "C" {
 /*
  * Class:     main_MotorGrafico
  * Method:    init
- * Signature: ()V
+ * Signature: ()Z
  */
-JNIEXPORT void JNICALL Java_main_MotorGrafico_init
+JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_init
   (JNIEnv *, jobject);
 
 /*
@@ -25,10 +25,42 @@ JNIEXPORT void JNICALL Java_main_MotorGrafico_cleanup
 
 /*
  * Class:     main_MotorGrafico
- * Method:    isRunning
+ * Method:    step
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_main_MotorGrafico_step
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     main_MotorGrafico
+ * Method:    reset
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_main_MotorGrafico_reset
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     main_MotorGrafico
+ * Method:    toggleSorting
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_main_MotorGrafico_toggleSorting
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     main_MotorGrafico
+ * Method:    isSorting
  * Signature: ()Z
  */
-JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_isRunning
+JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_isSorting
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     main_MotorGrafico
+ * Method:    hasFinished
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_hasFinished
   (JNIEnv *, jobject);
 
 /*
@@ -65,30 +97,6 @@ JNIEXPORT void JNICALL Java_main_MotorGrafico_setArraySize
 
 /*
  * Class:     main_MotorGrafico
- * Method:    setTickRate
- * Signature: (F)V
- */
-JNIEXPORT void JNICALL Java_main_MotorGrafico_setTickRate
-  (JNIEnv *, jobject, jfloat);
-
-/*
- * Class:     main_MotorGrafico
- * Method:    toggleSorting
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_main_MotorGrafico_toggleSorting
-  (JNIEnv *, jobject);
-
-/*
- * Class:     main_MotorGrafico
- * Method:    reset
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_main_MotorGrafico_reset
-  (JNIEnv *, jobject);
-
-/*
- * Class:     main_MotorGrafico
  * Method:    getComparisons
  * Signature: ()J
  */
@@ -101,22 +109,6 @@ JNIEXPORT jlong JNICALL Java_main_MotorGrafico_getComparisons
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL Java_main_MotorGrafico_getWrites
-  (JNIEnv *, jobject);
-
-/*
- * Class:     main_MotorGrafico
- * Method:    isSorting
- * Signature: ()Z
- */
-JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_isSorting
-  (JNIEnv *, jobject);
-
-/*
- * Class:     main_MotorGrafico
- * Method:    hasFinished
- * Signature: ()Z
- */
-JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_hasFinished
   (JNIEnv *, jobject);
 
 /*
@@ -142,6 +134,14 @@ JNIEXPORT jstring JNICALL Java_main_MotorGrafico_getAlgorithmName
  */
 JNIEXPORT jstring JNICALL Java_main_MotorGrafico_getAlgorithmDescription
   (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     main_MotorGrafico
+ * Method:    renderFrame
+ * Signature: (II[I)Z
+ */
+JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_renderFrame
+  (JNIEnv *, jobject, jint, jint, jintArray);
 
 #ifdef __cplusplus
 }
