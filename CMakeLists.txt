@@ -96,3 +96,68 @@ elseif (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
     target_compile_options(EngineTests PRIVATE /W4)
 endif()
+
+# ---------------------------------------------------------------------------
+# Alvo opcional: biblioteca nativa JNI (motor.dll / libmotor.so)
+# Integra o motor grafico com a aplicacao Java Swing (java/main).
+# Requer um JDK instalado (JAVA_HOME). O contrato JNI e gerado por:
+#   javac -encoding UTF-8 -h headers -d java/build java/main/MotorGrafico.java
+# ---------------------------------------------------------------------------
+find_package(JNI QUIET)
+if (JNI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/headers/main_MotorGrafico.h")
+    add_library(motor SHARED
+        src/jni/motor.cpp
+        src/algorithms/DataGenerator.cpp
+        src/algorithms/SortEngine.cpp
+        src/algorithms/SortSimulator.cpp
+        src/renderer/Shader.cpp
+        src/renderer/SortRenderer.cpp
+    )
+
+    target_include_directories(motor
+        PRIVATE
+            include
+            headers
+            ${JNI_INCLUDE_DIRS}
+    )
+
+    target_link_libraries(motor
+        PRIVATE
+            glfw
+            glm::glm
+            OpenGL::GL
+            algorithm_vision_glad
+            ${CMAKE_DL_LIBS}
+    )
+
+    # System.loadLibrary("motor") procura por "motor.dll" no Windows,
+    # sem o prefixo "lib" que o MinGW adiciona por padrao.
+    if (WIN32)
+        set_target_properties(motor PROPERTIES PREFIX "")
+    endif()
+
+    # Evita depender das DLLs de runtime do MinGW (libstdc++, libgcc,
+    # winpthread) quando a JVM carregar a biblioteca.
+    if (MINGW)
+        target_link_options(motor PRIVATE -static)
+    endif()
+
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(motor PRIVATE -Wall -Wextra -Wpedantic)
+    elseif (MSVC)
+        target_compile_options(motor PRIVATE /W4)
+    endif()
+
+    add_custom_command(TARGET motor POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:motor>/shaders"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${SHADER_SOURCE_DIR}"
+                "$<TARGET_FILE_DIR:motor>/shaders"
+        COMMENT "Copying shader assets next to the JNI library"
+        VERBATIM
+    )
+
+    message(STATUS "Alvo JNI 'motor' habilitado (JDK: ${JAVA_INCLUDE_PATH})")
+else()
+    message(STATUS "Alvo JNI 'motor' desabilitado (JDK ou headers/main_MotorGrafico.h ausentes)")
+endif()

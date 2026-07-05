@@ -47,6 +47,38 @@ cmake --build build
 
 The build copies `shaders/` next to the executable automatically, so runtime shader lookup works from `build/`.
 
+## Integracao Java (JNI)
+
+Alem do executavel standalone (ImGui), o projeto oferece um modo integrado em que a interface grafica e uma aplicacao **Java Swing** e o motor C++/OpenGL e carregado pela JVM como biblioteca nativa (**JNI**), seguindo a arquitetura em tres camadas do Projeto Interdisciplinar (POO + CG):
+
+```text
+Java Swing (java/main/ControlUI.java)
+        | metodos nativos (contrato: java/main/MotorGrafico.java)
+JNI (headers/main_MotorGrafico.h, gerado por javac -h)
+        |
+Motor C++ (src/jni/motor.cpp) -> reusa SortSimulator/SortEngine/SortRenderer
+```
+
+- A thread Java que chama `MotorGrafico.init()` torna-se a thread de renderizacao (dona do contexto OpenGL).
+- Comandos vindos da EDT do Swing sao **enfileirados com mutex** e aplicados pelo loop de render a cada frame (sem corridas de dados).
+- Metricas (comparacoes/acessos/status) sao expostas por snapshots atomicos e lidas por polling no Swing.
+
+### Build e execucao (requer JDK 17+)
+
+```bash
+# 1. Compilar as classes Java e gerar o header JNI
+javac -encoding UTF-8 -h headers -d java/build java/main/*.java
+
+# 2. Compilar a biblioteca nativa (alvo habilitado automaticamente se ha JDK)
+cmake -S . -B build
+cmake --build build --target motor
+
+# 3. Executar (o CWD deve ser build/ para o motor achar shaders/)
+cd build && java -Djava.library.path=. -cp ../java/build main.Main
+```
+
+No Windows ha um atalho: `run-integrado.bat`.
+
 ## Tests
 
 The project ships a headless logic target, `EngineTests`, that validates sorting behavior without depending on OpenGL rendering objects.
