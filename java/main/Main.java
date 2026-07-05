@@ -1,27 +1,40 @@
 package main;
 
+import main.controle.ControladorMotorNativo;
+import main.controle.ControladorSimulacao;
+import main.ui.JanelaPrincipal;
+
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 /**
- * Ponto de entrada da aplicacao integrada Java + OpenGL (JNI).
+ * Ponto de entrada da aplicacao.
  *
- * Duas threads cooperam:
- *  - "OpenGL-Render": executa MotorGrafico.init(), que bloqueia com o loop
- *    de renderizacao GLFW (o contexto OpenGL pertence a essa thread);
- *  - EDT (Event Dispatch Thread): executa a interface Swing, que envia
- *    comandos ao motor via JNI.
+ * Tudo acontece na Event Dispatch Thread (EDT) do Swing: a inicializacao do
+ * motor, o laco de animacao (Timer) e o encerramento. Assim o contrato de
+ * thread unica da biblioteca nativa e cumprido sem sincronizacao manual.
+ *
+ * Note o POLIMORFISMO: a variavel e do tipo da interface
+ * {@link ControladorSimulacao}; trocar a implementacao nao afeta a UI.
  */
-public class Main {
+public final class Main {
+
+    private Main() {
+    }
 
     public static void main(String[] args) {
-        MotorGrafico motor = new MotorGrafico();
-
-        Thread glThread = new Thread(motor::init, "OpenGL-Render");
-        glThread.start();
-
         SwingUtilities.invokeLater(() -> {
-            ControlUI ui = new ControlUI(motor);
-            ui.setVisible(true);
+            final ControladorSimulacao controlador = new ControladorMotorNativo();
+
+            if (!controlador.inicializar()) {
+                JOptionPane.showMessageDialog(null,
+                        "Falha ao inicializar o motor grafico nativo.",
+                        "AlgorithmVision", JOptionPane.ERROR_MESSAGE);
+                System.exit(1);
+            }
+
+            final JanelaPrincipal janela = new JanelaPrincipal(controlador);
+            janela.setVisible(true);
         });
     }
 }
