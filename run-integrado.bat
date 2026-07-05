@@ -1,8 +1,8 @@
 @echo off
-REM Executa a versao integrada Java Swing + OpenGL (JNI) do AlgorithmVision.
+REM Executa o AlgorithmVision (aplicacao Java Swing consumindo o motor JNI).
 REM
-REM Pre-requisitos (ver README.md, secao "Integracao Java (JNI)"):
-REM   1. javac -encoding UTF-8 -h headers -d java\build java\main\*.java
+REM Pre-requisitos (ver README.md):
+REM   1. javac -encoding UTF-8 -h headers -d java\build java\main\*.java java\main\controle\*.java java\main\ui\*.java
 REM   2. cmake --build build --target motor
 REM
 REM O diretorio de trabalho precisa ser build\ para que o motor encontre
