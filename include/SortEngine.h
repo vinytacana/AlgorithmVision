@@ -52,7 +52,8 @@ private:
     };
 
     std::vector<int> data;
-    int arraySize = 100;
+    int arraySize = 100;           // tamanho "vivo" (pode encolher em Stalin/Thanos)
+    int configuredArraySize = 100; // tamanho escolhido pelo usuario; usado no reset()
     SortVisualState visualState;
 
     Algorithm selectedAlgo = BUBBLE_SORT;

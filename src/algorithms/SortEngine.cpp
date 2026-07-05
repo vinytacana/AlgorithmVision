@@ -11,6 +11,7 @@ SortEngine::SortEngine() : bogo_rng(std::random_device{}()) {
 }
 
 void SortEngine::reset() {
+    arraySize = configuredArraySize;
     data = DataGenerator::generate(arraySize, distribution);
     resetAlgorithmState();
 }
@@ -739,8 +740,8 @@ ArrayDistribution SortEngine::getDistribution() const {
 
 void SortEngine::setArraySize(int size) {
     if (size <= 0) throw std::invalid_argument("arraySize must be positive");
-    if (arraySize != size) {
-        arraySize = size;
+    if (configuredArraySize != size) {
+        configuredArraySize = size;
         reset();
     }
 }
@@ -753,6 +754,7 @@ void SortEngine::setData(const std::vector<int>& values) {
     if (values.empty()) throw std::invalid_argument("data must not be empty");
     data = values;
     arraySize = static_cast<int>(data.size());
+    configuredArraySize = arraySize;
     resetAlgorithmState();
 }
 
