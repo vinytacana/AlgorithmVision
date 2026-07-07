@@ -1,0 +1,40 @@
+@startuml diagrama-sequencia
+' Diagrama de sequencia do laco de animacao do AlgorithmVision.
+' Renderize com PlantUML: plantuml diagrama-sequencia.puml (gera PNG)
+title Laco de animacao (Swing Timer ~60 qps, tudo na EDT)
+
+participant "Timer (16 ms)" as Timer
+participant "JanelaPrincipal" as Janela
+participant "PainelRenderizacao" as Painel
+participant "ControladorSimulacao\n(ControladorMotorNativo)" as Ctrl
+participant "MotorGrafico\n(JNI)" as Motor
+participant "motor nativo\n(C++/OpenGL)" as Nativo
+
+Timer -> Janela : actionPerformed()
+
+Janela -> Ctrl : avancarSeNecessario()
+alt intervalo (s/passo) decorrido
+  Ctrl -> Motor : step()
+  Motor -> Nativo : Java_main_MotorGrafico_step
+  Nativo -> Nativo : SortEngine::step()\n(um passo do algoritmo)
+end
+
+Janela -> Painel : atualizarQuadro()
+Painel -> Ctrl : renderizar(largura, altura, pixels)
+Ctrl -> Motor : renderFrame(largura, altura, pixels)
+Motor -> Nativo : Java_main_MotorGrafico_renderFrame
+Nativo -> Nativo : desenha no FBO offscreen\n(SortRenderer + shaders)
+Nativo -> Nativo : glReadPixels + conversao\nRGBA -> ARGB + flip vertical
+Nativo --> Motor : true (pixels preenchidos)
+Motor --> Ctrl : true
+Ctrl --> Painel : true
+Painel -> Painel : repaint()\n(paintComponent desenha a BufferedImage)
+
+Janela -> Ctrl : obterStatus() / obterComparacoes() / obterAcessos()
+Ctrl --> Janela : metricas exibidas no PainelControles
+
+note over Timer, Nativo
+  Contrato de thread unica: init(), step(), renderFrame() e cleanup()
+  sao todos chamados na Event Dispatch Thread, dona do contexto OpenGL.
+end note
+@enduml

@@ -5,6 +5,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+namespace {
+// M_PI nao e garantido pelo <cmath> no MSVC; usamos uma constante propria.
+constexpr float kTwoPi = 6.28318530717958647692f;
+}
+
 SortRenderer::SortRenderer() {
     setupMesh();
 }
@@ -41,23 +46,27 @@ void SortRenderer::render(const SortEngine& engine, Shader& shader, int screenWi
     const float centerX = viewportWidth / 2.0f;
     const float centerY = viewportHeight / 2.0f;
     const float radiusFactor = std::min(viewportWidth, viewportHeight) * 0.4f;
+    // Normaliza pelo maior valor real: apos remocoes (Stalin/Thanos) os valores
+    // podem exceder data.size() e sairiam do viewport se normalizados pelo tamanho.
+    const int maxValue = data.empty() ? 1 : *std::max_element(data.begin(), data.end());
+    const float valueScale = static_cast<float>(std::max(1, maxValue));
 
     for (int i = 0; i < static_cast<int>(data.size()); ++i) {
         glm::mat4 model = glm::mat4(1.0f);
 
         if (engine.getRenderMode() == BARS) {
             const float barWidth = viewportWidth / static_cast<float>(data.size());
-            const float heightScale = viewportHeight / static_cast<float>(data.size());
+            const float heightScale = viewportHeight / valueScale;
             model = glm::translate(model, glm::vec3(i * barWidth, 0.0f, 0.0f));
             model = glm::scale(model, glm::vec3(std::max(1.0f, barWidth - 0.5f), data[i] * heightScale, 1.0f));
         } else if (engine.getRenderMode() == DOTS) {
             const float dotX = (static_cast<float>(i) / static_cast<float>(data.size())) * viewportWidth;
-            const float dotY = (static_cast<float>(data[i]) / static_cast<float>(data.size())) * viewportHeight;
+            const float dotY = (static_cast<float>(data[i]) / valueScale) * viewportHeight;
             model = glm::translate(model, glm::vec3(dotX, dotY, 0.0f));
             model = glm::scale(model, glm::vec3(3.0f, 3.0f, 1.0f));
         } else if (engine.getRenderMode() == CIRCULAR) {
-            const float angle = (static_cast<float>(i) / static_cast<float>(data.size())) * 2.0f * static_cast<float>(M_PI);
-            const float radius = (static_cast<float>(data[i]) / static_cast<float>(data.size())) * radiusFactor;
+            const float angle = (static_cast<float>(i) / static_cast<float>(data.size())) * kTwoPi;
+            const float radius = (static_cast<float>(data[i]) / valueScale) * radiusFactor;
             model = glm::translate(model, glm::vec3(centerX, centerY, 0.0f));
             model = glm::rotate(model, angle, glm::vec3(0, 0, 1));
             model = glm::scale(model, glm::vec3(2.0f, radius, 1.0f));
