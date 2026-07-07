@@ -16,6 +16,9 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c" AND EXISTS "${CMAKE_CUR
     add_library(algorithm_vision_glad STATIC glad/src/glad.c)
     target_include_directories(algorithm_vision_glad PUBLIC glad/include)
     target_link_libraries(algorithm_vision_glad PUBLIC ${CMAKE_DL_LIBS})
+    # Obrigatorio no Linux: esta lib estatica e linkada dentro da biblioteca
+    # compartilhada 'motor' (.so), o que exige codigo independente de posicao.
+    set_target_properties(algorithm_vision_glad PROPERTIES POSITION_INDEPENDENT_CODE ON)
 else()
     message(FATAL_ERROR "GLAD e obrigatorio. Adicione os arquivos em glad/src/glad.c e glad/include/glad/glad.h.")
 endif()

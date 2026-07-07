@@ -1,6 +1,9 @@
 #ifndef SORT_TYPES_H
 #define SORT_TYPES_H
 
+// ATENCAO: a ORDEM destes enums e contrato com a UI Java — os JComboBox de
+// visualizacao e distribuicao em java/main/ui/PainelControles.java enviam o
+// indice selecionado pelo JNI. Ao alterar a ordem, atualize os dois lados.
 enum RenderMode { BARS, DOTS, CIRCULAR, RENDER_MODE_COUNT };
 enum ArrayDistribution { RANDOM, REVERSED, NEARLY_SORTED, FEW_UNIQUE, DISTRIBUTION_COUNT };
 

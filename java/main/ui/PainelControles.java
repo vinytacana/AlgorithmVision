@@ -49,6 +49,9 @@ public class PainelControles extends JPanel {
         }
         final JComboBox<String> comboAlgoritmo = new JComboBox<>(algoritmos);
 
+        // ATENCAO: a ordem destes itens e contrato com os enums nativos em
+        // include/SortTypes.h (ArrayDistribution e RenderMode) — o indice
+        // selecionado viaja pelo JNI. Ao alterar, atualize os dois lados.
         final JComboBox<String> comboDistribuicao = new JComboBox<>(new String[] {
                 "Aleatório", "Reverso", "Quase Ordenado", "Poucos Únicos"
         });
