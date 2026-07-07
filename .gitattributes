@@ -1,0 +1,8 @@
+# Normaliza finais de linha para que o repositorio funcione em qualquer SO.
+# Critico: *.sh PRECISA sair com LF — bash no Linux quebra com CRLF
+# ("$'\r': command not found").
+* text=auto
+*.sh text eol=lf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
