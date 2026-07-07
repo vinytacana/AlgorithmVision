@@ -1,0 +1,117 @@
+@startuml diagrama-classes
+' Diagrama de classes UML da camada Java (POO) do AlgorithmVision.
+' Renderize com PlantUML: plantuml diagrama-classes.puml (gera PNG)
+title AlgorithmVision - Camada Java (POO)
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "javax.swing" #EEEEEE {
+  class JFrame
+  class JPanel
+}
+
+package "main" {
+  class Main {
+    {static} +main(args: String[]): void
+  }
+
+  class MotorGrafico <<final>> {
+    +init(): boolean
+    +cleanup(): void
+    +step(): void
+    +reset(): void
+    +toggleSorting(): void
+    +isSorting(): boolean
+    +hasFinished(): boolean
+    +setAlgorithm(indice: int): void
+    +setDistribution(indice: int): void
+    +setRenderMode(indice: int): void
+    +setArraySize(n: int): void
+    +getComparisons(): long
+    +getWrites(): long
+    +getAlgorithmCount(): int
+    +getAlgorithmName(indice: int): String
+    +getAlgorithmDescription(indice: int): String
+    +renderFrame(largura: int, altura: int, pixels: int[]): boolean
+  }
+  note right of MotorGrafico
+    Encapsulamento: unico ponto
+    de contato com o codigo nativo
+    (System.loadLibrary("motor")).
+    Todos os metodos sao "native".
+  end note
+}
+
+package "main.controle" {
+  interface ControladorSimulacao {
+    +inicializar(): boolean
+    +encerrar(): void
+    +iniciarOuPausar(): void
+    +reiniciar(): void
+    +avancarSeNecessario(): void
+    +renderizar(l: int, a: int, destino: int[]): boolean
+    +selecionarAlgoritmo(indice: int): void
+    +selecionarDistribuicao(indice: int): void
+    +selecionarVisualizacao(indice: int): void
+    +definirTamanho(n: int): void
+    +definirVelocidade(sPorPasso: float): void
+    +obterStatus(): String
+    +estaExecutando(): boolean
+    +obterComparacoes(): long
+    +obterAcessos(): long
+    +quantidadeAlgoritmos(): int
+    +nomeAlgoritmo(indice: int): String
+    +descricaoAlgoritmo(indice: int): String
+  }
+
+  class ControladorMotorNativo {
+    -motor: MotorGrafico
+    -segundosPorPasso: float
+    -ultimoPassoNanos: long
+  }
+}
+
+package "main.ui" {
+  class JanelaPrincipal {
+    -lacoAnimacao: Timer
+    -encerrarAplicacao(): void
+  }
+  class PainelControles {
+    +atualizar(): void
+  }
+  class PainelRenderizacao {
+    -quadro: BufferedImage
+    -pixels: int[]
+    +atualizarQuadro(): void
+    #paintComponent(g: Graphics): void
+  }
+}
+
+' Heranca
+JFrame <|-- JanelaPrincipal
+JPanel <|-- PainelControles
+JPanel <|-- PainelRenderizacao
+
+' Polimorfismo / inversao de dependencia: a UI depende apenas da interface
+ControladorSimulacao <|.. ControladorMotorNativo
+JanelaPrincipal --> ControladorSimulacao
+PainelControles --> ControladorSimulacao
+PainelRenderizacao --> ControladorSimulacao
+
+' Composicao
+JanelaPrincipal *--> PainelControles
+JanelaPrincipal *--> PainelRenderizacao
+ControladorMotorNativo o--> MotorGrafico
+
+' Criacao
+Main ..> ControladorMotorNativo : cria
+Main ..> JanelaPrincipal : cria
+
+note bottom of ControladorSimulacao
+  Abstracao consumida pela visao.
+  Trocar a implementacao (motor JNI,
+  mock, versao 100% Java) nao exige
+  nenhuma alteracao na UI.
+end note
+@enduml
