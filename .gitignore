@@ -35,6 +35,7 @@
 build/
 bin/
 out/
+lib/
 
 # IDE files
 .vscode/

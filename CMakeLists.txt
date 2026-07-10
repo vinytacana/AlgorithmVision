@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
+find_package(Java COMPONENTS Runtime Development QUIET)
 
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/glad/include/glad/glad.h")
     add_library(algorithm_vision_glad STATIC glad/src/glad.c)
@@ -24,22 +25,69 @@ else()
 endif()
 
 set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
+set(SORT_STRATEGY_SOURCES
+    src/algorithms/BogoSorter.cpp
+    src/algorithms/BubbleSorter.cpp
+    src/algorithms/HeapSorter.cpp
+    src/algorithms/InsertionSorter.cpp
+    src/algorithms/KWayMergeSorter.cpp
+    src/algorithms/MergeSorter.cpp
+    src/algorithms/MiracleSorter.cpp
+    src/algorithms/QuickSorter.cpp
+    src/algorithms/SelectionSorter.cpp
+    src/algorithms/ShellSorter.cpp
+    src/algorithms/SleepSorter.cpp
+    src/algorithms/StalinSorter.cpp
+    src/algorithms/ThanosSorter.cpp
+)
 
 # ---------------------------------------------------------------------------
 # Artefato principal: biblioteca nativa JNI (motor.dll / libmotor.so)
 #
 # O motor e uma biblioteca PASSIVA de renderizacao offscreen consumida pela
-# aplicacao Java Swing (java/main). Requer um JDK instalado (JAVA_HOME).
+# aplicacao Java Swing (src/main). Requer um JDK instalado (JAVA_HOME).
 # O contrato JNI e gerado por:
-#   javac -encoding UTF-8 -h headers -d java/build \
-#         java/main/*.java java/main/controle/*.java java/main/ui/*.java
+#   javac -encoding UTF-8 -h headers -d build \
+#         src/main/*.java src/main/controle/*.java src/main/ui/*.java
 # ---------------------------------------------------------------------------
 find_package(JNI QUIET)
 if (JNI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/headers/main_MotorGrafico.h")
+    if (Java_JAVAC_EXECUTABLE)
+        set(JAVA_CLASS_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+        set(GENERATED_JNI_HEADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/headers")
+        set(GENERATED_JNI_HEADER "${GENERATED_JNI_HEADER_DIR}/main_MotorGrafico.h")
+        set(JAVA_SOURCES
+            src/main/Main.java
+            src/main/MotorGrafico.java
+            src/main/TesteIntegracao.java
+            src/main/controle/ControladorMotorNativo.java
+            src/main/controle/ControladorSimulacao.java
+            src/main/ui/JanelaPrincipal.java
+            src/main/ui/PainelControles.java
+            src/main/ui/PainelRenderizacao.java
+        )
+
+        add_custom_command(
+            OUTPUT "${GENERATED_JNI_HEADER}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${JAVA_CLASS_DIR}" "${GENERATED_JNI_HEADER_DIR}"
+            COMMAND "${Java_JAVAC_EXECUTABLE}" -encoding UTF-8
+                    -h "${GENERATED_JNI_HEADER_DIR}"
+                    -d "${JAVA_CLASS_DIR}"
+                    ${JAVA_SOURCES}
+            DEPENDS ${JAVA_SOURCES}
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            COMMENT "Compiling Java classes and generating JNI header"
+            VERBATIM
+        )
+
+        add_custom_target(java_classes ALL DEPENDS "${GENERATED_JNI_HEADER}")
+    endif()
+
     add_library(motor SHARED
-        src/jni/motor.cpp
+        native/motor.cpp
         src/algorithms/DataGenerator.cpp
         src/algorithms/SortEngine.cpp
+        ${SORT_STRATEGY_SOURCES}
         src/algorithms/SortSimulator.cpp
         src/renderer/Shader.cpp
         src/renderer/SortRenderer.cpp
@@ -48,8 +96,18 @@ if (JNI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/headers/main_MotorGrafico.
     target_include_directories(motor
         PRIVATE
             include
+            ${GENERATED_JNI_HEADER_DIR}
             headers
             ${JNI_INCLUDE_DIRS}
+    )
+
+    if (TARGET java_classes)
+        add_dependencies(motor java_classes)
+    endif()
+
+    set_target_properties(motor PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
     )
 
     target_link_libraries(motor
@@ -99,6 +157,7 @@ add_executable(EngineTests
     tests/EngineTests.cpp
     src/algorithms/DataGenerator.cpp
     src/algorithms/SortEngine.cpp
+    ${SORT_STRATEGY_SOURCES}
 )
 
 target_include_directories(EngineTests
@@ -112,6 +171,21 @@ target_link_libraries(EngineTests
 )
 
 add_test(NAME EngineTests COMMAND EngineTests)
+
+if (TARGET motor AND Java_JAVA_EXECUTABLE AND TARGET java_classes)
+    add_test(
+        NAME JavaIntegration
+        COMMAND "${Java_JAVA_EXECUTABLE}"
+                --enable-native-access=ALL-UNNAMED
+                -Djava.library.path=$<TARGET_FILE_DIR:motor>
+                -cp "${JAVA_CLASS_DIR}"
+                main.TesteIntegracao
+    )
+    set_tests_properties(JavaIntegration PROPERTIES
+        WORKING_DIRECTORY "$<TARGET_FILE_DIR:motor>"
+        ENVIRONMENT "GLFW_PLATFORM=x11"
+    )
+endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(EngineTests PRIVATE -Wall -Wextra -Wpedantic)

@@ -3,10 +3,17 @@
 #include <algorithm>
 #include <random>
 
-std::vector<int> DataGenerator::generate(int arraySize, ArrayDistribution distribution) {
+std::vector<int> DataGenerator::generate(
+        int arraySize,
+        ArrayDistribution distribution,
+        std::optional<unsigned int> seed) {
     std::vector<int> data(arraySize);
-    std::random_device rd;
-    std::mt19937 rng(rd());
+    std::mt19937 rng;
+    if (seed.has_value()) {
+        rng.seed(*seed);
+    } else {
+        rng.seed(std::random_device{}());
+    }
 
     if (distribution == RANDOM) {
         for (int i = 0; i < arraySize; ++i) data[i] = i + 1;

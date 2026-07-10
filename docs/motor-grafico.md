@@ -47,7 +47,7 @@ cleanup() ─────────────────────▶ des
 ## Contrato JNI
 
 Classe Java: `main.MotorGrafico` (unica ponte; padrao de nome
-`Java_main_MotorGrafico_<metodo>` em `src/jni/motor.cpp`).
+`Java_main_MotorGrafico_<metodo>` em `native/motor.cpp`).
 
 | Metodo Java                          | Funcao nativa                                   | Papel |
 | ------------------------------------ | ------------------------------------------------ | ----- |
