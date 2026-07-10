@@ -25,6 +25,21 @@ else()
 endif()
 
 set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
+set(SORT_STRATEGY_SOURCES
+    src/algorithms/BogoSorter.cpp
+    src/algorithms/BubbleSorter.cpp
+    src/algorithms/HeapSorter.cpp
+    src/algorithms/InsertionSorter.cpp
+    src/algorithms/KWayMergeSorter.cpp
+    src/algorithms/MergeSorter.cpp
+    src/algorithms/MiracleSorter.cpp
+    src/algorithms/QuickSorter.cpp
+    src/algorithms/SelectionSorter.cpp
+    src/algorithms/ShellSorter.cpp
+    src/algorithms/SleepSorter.cpp
+    src/algorithms/StalinSorter.cpp
+    src/algorithms/ThanosSorter.cpp
+)
 
 # ---------------------------------------------------------------------------
 # Artefato principal: biblioteca nativa JNI (motor.dll / libmotor.so)
@@ -72,6 +87,7 @@ if (JNI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/headers/main_MotorGrafico.
         native/motor.cpp
         src/algorithms/DataGenerator.cpp
         src/algorithms/SortEngine.cpp
+        ${SORT_STRATEGY_SOURCES}
         src/algorithms/SortSimulator.cpp
         src/renderer/Shader.cpp
         src/renderer/SortRenderer.cpp
@@ -141,6 +157,7 @@ add_executable(EngineTests
     tests/EngineTests.cpp
     src/algorithms/DataGenerator.cpp
     src/algorithms/SortEngine.cpp
+    ${SORT_STRATEGY_SOURCES}
 )
 
 target_include_directories(EngineTests
