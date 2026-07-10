@@ -3,6 +3,7 @@
 #include "DataGenerator.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <numeric>
 #include <stdexcept>
 
@@ -740,6 +741,7 @@ ArrayDistribution SortEngine::getDistribution() const {
 
 void SortEngine::setArraySize(int size) {
     if (size <= 0) throw std::invalid_argument("arraySize must be positive");
+    if (size > MAX_ARRAY_SIZE) throw std::invalid_argument("arraySize exceeds maximum allowed size");
     if (configuredArraySize != size) {
         configuredArraySize = size;
         reset();
@@ -752,6 +754,9 @@ int SortEngine::getArraySize() const {
 
 void SortEngine::setData(const std::vector<int>& values) {
     if (values.empty()) throw std::invalid_argument("data must not be empty");
+    if (values.size() > static_cast<std::size_t>(MAX_ARRAY_SIZE)) {
+        throw std::invalid_argument("data exceeds maximum allowed size");
+    }
     data = values;
     arraySize = static_cast<int>(data.size());
     configuredArraySize = arraySize;

@@ -7,6 +7,8 @@
 enum RenderMode { BARS, DOTS, CIRCULAR, RENDER_MODE_COUNT };
 enum ArrayDistribution { RANDOM, REVERSED, NEARLY_SORTED, FEW_UNIQUE, DISTRIBUTION_COUNT };
 
+inline constexpr int MAX_ARRAY_SIZE = 2000;
+
 struct SortVisualState {
     int comp1 = -1;
     int comp2 = -1;

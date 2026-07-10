@@ -19,10 +19,14 @@
 #include "AlgorithmRegistry.h"
 #include "Shader.h"
 #include "SortSimulator.h"
+#include "SortTypes.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
+#include <limits>
 #include <memory>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -32,12 +36,16 @@ namespace {
 GLFWwindow* g_window = nullptr; // janela OCULTA: existe so para ter contexto GL
 std::unique_ptr<Shader> g_shader;
 std::unique_ptr<SortSimulator> g_simulator;
+std::thread::id g_ownerThread;
 
 GLuint g_fbo = 0;
 GLuint g_colorBuffer = 0;
 int g_fboWidth = 0;
 int g_fboHeight = 0;
 std::vector<unsigned char> g_readBuffer; // pixels RGBA lidos da GPU
+
+constexpr int kMaxFramebufferDimension = 7680;
+constexpr std::int64_t kMaxFramebufferPixels = 7680LL * 4320LL;
 
 void destroyFramebuffer() {
     if (g_colorBuffer != 0) glDeleteRenderbuffers(1, &g_colorBuffer);
@@ -80,10 +88,38 @@ bool validAlgorithmIndex(int index) {
     return index >= 0 && index < AlgorithmRegistry::count();
 }
 
+bool validateRenderRequest(jint width, jint height, jintArray pixelsOut, JNIEnv* env, jsize& needed) {
+    if (width <= 0 || height <= 0 || pixelsOut == nullptr) return false;
+    if (width > kMaxFramebufferDimension || height > kMaxFramebufferDimension) {
+        std::cerr << "ERRO::JNI::FRAMEBUFFER_MUITO_GRANDE: " << width << "x" << height << std::endl;
+        return false;
+    }
+
+    const std::int64_t pixelCount = static_cast<std::int64_t>(width) * static_cast<std::int64_t>(height);
+    if (pixelCount > kMaxFramebufferPixels || pixelCount > std::numeric_limits<jsize>::max()) {
+        std::cerr << "ERRO::JNI::FRAMEBUFFER_EXCEDE_LIMITE_SEGURO: " << width << "x" << height << std::endl;
+        return false;
+    }
+
+    needed = static_cast<jsize>(pixelCount);
+    return env->GetArrayLength(pixelsOut) >= needed;
+}
+
+bool calledFromOwnerThread() {
+    return g_ownerThread == std::this_thread::get_id();
+}
+
 } // namespace
 
 JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_init(JNIEnv*, jobject) {
-    if (g_window != nullptr) return JNI_TRUE; // ja inicializado
+    const std::thread::id currentThread = std::this_thread::get_id();
+    if (g_window != nullptr) {
+        if (g_ownerThread != currentThread) {
+            std::cerr << "ERRO::JNI::THREAD_INVALIDA_INIT" << std::endl;
+            return JNI_FALSE;
+        }
+        return JNI_TRUE; // ja inicializado
+    }
 
     if (!glfwInit()) {
         std::cerr << "ERRO::GLFW::INICIALIZACAO_FALHOU" << std::endl;
@@ -123,6 +159,7 @@ JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_init(JNIEnv*, jobject) {
         return JNI_FALSE;
     }
 
+    g_ownerThread = currentThread;
     return JNI_TRUE;
 }
 
@@ -138,6 +175,7 @@ JNIEXPORT void JNICALL Java_main_MotorGrafico_cleanup(JNIEnv*, jobject) {
 
     glfwDestroyWindow(g_window);
     g_window = nullptr;
+    g_ownerThread = std::thread::id{};
     glfwTerminate();
 }
 
@@ -183,7 +221,7 @@ JNIEXPORT void JNICALL Java_main_MotorGrafico_setRenderMode(JNIEnv*, jobject, ji
 }
 
 JNIEXPORT void JNICALL Java_main_MotorGrafico_setArraySize(JNIEnv*, jobject, jint n) {
-    if (engineReady() && n > 0) g_simulator->setArraySize(n);
+    if (engineReady() && n > 0 && n <= MAX_ARRAY_SIZE) g_simulator->setArraySize(n);
 }
 
 JNIEXPORT jlong JNICALL Java_main_MotorGrafico_getComparisons(JNIEnv*, jobject) {
@@ -210,10 +248,14 @@ JNIEXPORT jstring JNICALL Java_main_MotorGrafico_getAlgorithmDescription(JNIEnv*
 
 JNIEXPORT jboolean JNICALL Java_main_MotorGrafico_renderFrame(
         JNIEnv* env, jobject, jint width, jint height, jintArray pixelsOut) {
-    if (!engineReady() || width <= 0 || height <= 0 || pixelsOut == nullptr) return JNI_FALSE;
+    if (!engineReady()) return JNI_FALSE;
+    if (!calledFromOwnerThread()) {
+        std::cerr << "ERRO::JNI::THREAD_INVALIDA_RENDERFRAME" << std::endl;
+        return JNI_FALSE;
+    }
 
-    const jsize needed = width * height;
-    if (env->GetArrayLength(pixelsOut) < needed) return JNI_FALSE;
+    jsize needed = 0;
+    if (!validateRenderRequest(width, height, pixelsOut, env, needed)) return JNI_FALSE;
     if (!ensureFramebuffer(width, height)) return JNI_FALSE;
 
     // 1. Desenha o estado atual no framebuffer offscreen.
