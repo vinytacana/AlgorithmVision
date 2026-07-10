@@ -40,9 +40,9 @@ CORE_SOURCES=(
 )
 
 JAVA_SOURCES=(
-    java/main/*.java
-    java/main/controle/*.java
-    java/main/ui/*.java
+    src/main/*.java
+    src/main/controle/*.java
+    src/main/ui/*.java
 )
 
 CXXFLAGS=(-std=c++17 -O2 -Wall -Wextra)
@@ -71,27 +71,29 @@ build_tests() {
 build_jni() {
     build_glad
     echo ">> Compilando classes Java e gerando header JNI..."
-    javac -encoding UTF-8 -h headers -d java/build "${JAVA_SOURCES[@]}"
+    mkdir -p build lib
+    javac -encoding UTF-8 -h headers -d build "${JAVA_SOURCES[@]}"
 
     echo ">> Compilando motor.dll (biblioteca nativa JNI)..."
     # -shared: gera DLL; -static: embute o runtime do MinGW (libstdc++/libgcc/
     # winpthread), para a JVM carregar a DLL sem depender do PATH.
     g++ -shared -static "${CXXFLAGS[@]}" "${INCLUDES[@]}" -Iheaders \
         -I"$JDK/include" -I"$JDK/include/win32" \
-        src/jni/motor.cpp \
+        native/motor.cpp \
         "${CORE_SOURCES[@]}" \
         glad.o \
         "${LIBS[@]}" \
-        -o motor.dll
-    echo ">> OK. Para executar (CWD precisa ter shaders/ e motor.dll):"
-    echo "   java -Djava.library.path=. -cp java/build main.Main"
-    echo "   java -Djava.library.path=. -cp java/build main.TesteIntegracao"
+        -o lib/motor.dll
+    cp -r shaders lib/
+    echo ">> OK. Para executar:"
+    echo "   cd lib && java -Djava.library.path=. -cp ../build main.Main"
+    echo "   cd lib && java -Djava.library.path=. -cp ../build main.TesteIntegracao"
 }
 
 clean() {
     echo ">> Limpando artefatos do build manual..."
     rm -f glad.o EngineTests.exe motor.dll
-    rm -rf java/build
+    rm -rf build/main lib
     echo ">> OK"
 }
 

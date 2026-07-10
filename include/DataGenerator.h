@@ -3,11 +3,15 @@
 
 #include "SortTypes.h"
 
+#include <optional>
 #include <vector>
 
 class DataGenerator {
 public:
-    static std::vector<int> generate(int arraySize, ArrayDistribution distribution);
+    static std::vector<int> generate(
+            int arraySize,
+            ArrayDistribution distribution,
+            std::optional<unsigned int> seed = std::nullopt);
 };
 
 #endif
