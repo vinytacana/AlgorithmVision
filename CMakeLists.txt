@@ -30,26 +30,26 @@ set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 # Artefato principal: biblioteca nativa JNI (motor.dll / libmotor.so)
 #
 # O motor e uma biblioteca PASSIVA de renderizacao offscreen consumida pela
-# aplicacao Java Swing (java/main). Requer um JDK instalado (JAVA_HOME).
+# aplicacao Java Swing (src/main). Requer um JDK instalado (JAVA_HOME).
 # O contrato JNI e gerado por:
-#   javac -encoding UTF-8 -h headers -d java/build \
-#         java/main/*.java java/main/controle/*.java java/main/ui/*.java
+#   javac -encoding UTF-8 -h headers -d build \
+#         src/main/*.java src/main/controle/*.java src/main/ui/*.java
 # ---------------------------------------------------------------------------
 find_package(JNI QUIET)
 if (JNI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/headers/main_MotorGrafico.h")
     if (Java_JAVAC_EXECUTABLE)
-        set(JAVA_CLASS_DIR "${CMAKE_CURRENT_BINARY_DIR}/java/classes")
+        set(JAVA_CLASS_DIR "${CMAKE_CURRENT_BINARY_DIR}")
         set(GENERATED_JNI_HEADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/headers")
         set(GENERATED_JNI_HEADER "${GENERATED_JNI_HEADER_DIR}/main_MotorGrafico.h")
         set(JAVA_SOURCES
-            java/main/Main.java
-            java/main/MotorGrafico.java
-            java/main/TesteIntegracao.java
-            java/main/controle/ControladorMotorNativo.java
-            java/main/controle/ControladorSimulacao.java
-            java/main/ui/JanelaPrincipal.java
-            java/main/ui/PainelControles.java
-            java/main/ui/PainelRenderizacao.java
+            src/main/Main.java
+            src/main/MotorGrafico.java
+            src/main/TesteIntegracao.java
+            src/main/controle/ControladorMotorNativo.java
+            src/main/controle/ControladorSimulacao.java
+            src/main/ui/JanelaPrincipal.java
+            src/main/ui/PainelControles.java
+            src/main/ui/PainelRenderizacao.java
         )
 
         add_custom_command(
@@ -69,7 +69,7 @@ if (JNI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/headers/main_MotorGrafico.
     endif()
 
     add_library(motor SHARED
-        src/jni/motor.cpp
+        native/motor.cpp
         src/algorithms/DataGenerator.cpp
         src/algorithms/SortEngine.cpp
         src/algorithms/SortSimulator.cpp
@@ -88,6 +88,11 @@ if (JNI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/headers/main_MotorGrafico.
     if (TARGET java_classes)
         add_dependencies(motor java_classes)
     endif()
+
+    set_target_properties(motor PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+    )
 
     target_link_libraries(motor
         PRIVATE
