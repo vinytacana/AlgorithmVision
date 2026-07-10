@@ -1,6 +1,6 @@
 // Biblioteca nativa de renderizacao do AlgorithmVision.
 //
-// Implementa o contrato declarado em java/main/MotorGrafico.java seguindo o
+// Implementa o contrato declarado em src/main/MotorGrafico.java seguindo o
 // modelo de BIBLIOTECA PASSIVA: nenhuma janela visivel, nenhum loop proprio.
 // A aplicacao Java e a dona do ciclo de vida - ela controla o tempo da
 // simulacao (step) e pede quadros via renderFrame(), que desenha o estado
