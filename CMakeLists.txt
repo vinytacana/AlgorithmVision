@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
+find_package(Java COMPONENTS Runtime Development QUIET)
 
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/glad/include/glad/glad.h")
     add_library(algorithm_vision_glad STATIC glad/src/glad.c)
@@ -36,6 +37,37 @@ set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 # ---------------------------------------------------------------------------
 find_package(JNI QUIET)
 if (JNI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/headers/main_MotorGrafico.h")
+    if (Java_JAVAC_EXECUTABLE)
+        set(JAVA_CLASS_DIR "${CMAKE_CURRENT_BINARY_DIR}/java/classes")
+        set(GENERATED_JNI_HEADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/headers")
+        set(GENERATED_JNI_HEADER "${GENERATED_JNI_HEADER_DIR}/main_MotorGrafico.h")
+        set(JAVA_SOURCES
+            java/main/Main.java
+            java/main/MotorGrafico.java
+            java/main/TesteIntegracao.java
+            java/main/controle/ControladorMotorNativo.java
+            java/main/controle/ControladorSimulacao.java
+            java/main/ui/JanelaPrincipal.java
+            java/main/ui/PainelControles.java
+            java/main/ui/PainelRenderizacao.java
+        )
+
+        add_custom_command(
+            OUTPUT "${GENERATED_JNI_HEADER}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${JAVA_CLASS_DIR}" "${GENERATED_JNI_HEADER_DIR}"
+            COMMAND "${Java_JAVAC_EXECUTABLE}" -encoding UTF-8
+                    -h "${GENERATED_JNI_HEADER_DIR}"
+                    -d "${JAVA_CLASS_DIR}"
+                    ${JAVA_SOURCES}
+            DEPENDS ${JAVA_SOURCES}
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            COMMENT "Compiling Java classes and generating JNI header"
+            VERBATIM
+        )
+
+        add_custom_target(java_classes ALL DEPENDS "${GENERATED_JNI_HEADER}")
+    endif()
+
     add_library(motor SHARED
         src/jni/motor.cpp
         src/algorithms/DataGenerator.cpp
@@ -48,9 +80,14 @@ if (JNI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/headers/main_MotorGrafico.
     target_include_directories(motor
         PRIVATE
             include
+            ${GENERATED_JNI_HEADER_DIR}
             headers
             ${JNI_INCLUDE_DIRS}
     )
+
+    if (TARGET java_classes)
+        add_dependencies(motor java_classes)
+    endif()
 
     target_link_libraries(motor
         PRIVATE
@@ -112,6 +149,21 @@ target_link_libraries(EngineTests
 )
 
 add_test(NAME EngineTests COMMAND EngineTests)
+
+if (TARGET motor AND Java_JAVA_EXECUTABLE AND TARGET java_classes)
+    add_test(
+        NAME JavaIntegration
+        COMMAND "${Java_JAVA_EXECUTABLE}"
+                --enable-native-access=ALL-UNNAMED
+                -Djava.library.path=$<TARGET_FILE_DIR:motor>
+                -cp "${JAVA_CLASS_DIR}"
+                main.TesteIntegracao
+    )
+    set_tests_properties(JavaIntegration PROPERTIES
+        WORKING_DIRECTORY "$<TARGET_FILE_DIR:motor>"
+        ENVIRONMENT "GLFW_PLATFORM=x11"
+    )
+endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(EngineTests PRIVATE -Wall -Wextra -Wpedantic)
