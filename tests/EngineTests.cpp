@@ -1,4 +1,5 @@
 #include "AlgorithmRegistry.h"
+#include "DataGenerator.h"
 #include "SortEngine.h"
 
 #include <algorithm>
@@ -143,6 +144,17 @@ bool testSetArraySizeRejectsInvalidValues() {
     return false;
 }
 
+bool testSetArraySizeRejectsTooLargeValues() {
+    SortEngine engine;
+    try {
+        engine.setArraySize(MAX_ARRAY_SIZE + 1);
+    } catch (const std::invalid_argument&) {
+        return true;
+    }
+    std::cerr << "Oversized array was accepted\n";
+    return false;
+}
+
 bool testRejectsEmptyData() {
     SortEngine engine;
     try {
@@ -151,6 +163,26 @@ bool testRejectsEmptyData() {
         return true;
     }
     std::cerr << "Empty input was accepted\n";
+    return false;
+}
+
+bool testRejectsTooLargeData() {
+    SortEngine engine;
+    try {
+        engine.setData(std::vector<int>(MAX_ARRAY_SIZE + 1, 1));
+    } catch (const std::invalid_argument&) {
+        return true;
+    }
+    std::cerr << "Oversized data input was accepted\n";
+    return false;
+}
+
+bool testDataGeneratorSeedIsDeterministic() {
+    const auto first = DataGenerator::generate(32, RANDOM, 1234u);
+    const auto second = DataGenerator::generate(32, RANDOM, 1234u);
+    if (first == second) return true;
+
+    std::cerr << "DataGenerator did not reproduce RANDOM distribution with a fixed seed\n";
     return false;
 }
 
@@ -292,7 +324,10 @@ int main() {
     ok = testResetPreservesConfiguration() && ok;
     ok = testDistributionSwitchResetsData() && ok;
     ok = testSetArraySizeRejectsInvalidValues() && ok;
+    ok = testSetArraySizeRejectsTooLargeValues() && ok;
     ok = testRejectsEmptyData() && ok;
+    ok = testRejectsTooLargeData() && ok;
+    ok = testDataGeneratorSeedIsDeterministic() && ok;
     ok = testMiracleSortWaitsForUnsortedData() && ok;
     ok = testMiracleSortFinishesSortedData() && ok;
     ok = testMergeSortCopyBackIsIncremental() && ok;
